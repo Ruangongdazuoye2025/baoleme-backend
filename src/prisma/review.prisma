@@ -9,9 +9,7 @@ model Review {
 
   orderId String @unique
   userId  String
-  shopId  String
 
   order Order @relation(fields: [orderId], references: [id])
   user  User  @relation(fields: [userId], references: [id])
-  shop  Shop  @relation(fields: [shopId], references: [id])
 }

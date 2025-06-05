@@ -2,7 +2,7 @@ import Joi from "joi";
 
 export const createReview = Joi.object({
     order: Joi.string().required(),
-    rating: Joi.number().required(),
+    rating: Joi.number().integer().min(0).max(50).required(),
     content: Joi.string().required()
 }).required();
 
@@ -34,8 +34,8 @@ export const getReviewQuery = Joi.object({
 })
 
 export interface GetReviewQuery {
-    p: number;
-    pn: number;
+    p: string;
+    pn: string;
 }
 
 export const reviewIdParams = Joi.object({
@@ -47,15 +47,11 @@ export interface ReviewIdParams {
 }
 
 export const updateReview = Joi.object({
-    id: Joi.string().required(),
-    rating: Joi.number().required(),
+    rating: Joi.number().integer().min(0).max(50).required(),
     content: Joi.string().required(),
-    order: Joi.string().required(),
 }).required();
 
 export interface UpdateReview {
-    id: string;
     rating: number;
     content: string;
-    order: string;
 }

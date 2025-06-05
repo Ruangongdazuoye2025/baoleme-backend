@@ -30,5 +30,4 @@ model Shop {
   items             Item[]
   itemCategories    ItemCategory[]
   orders            Order[]
-  Review            Review[]
 }
