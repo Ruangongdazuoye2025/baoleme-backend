@@ -8,29 +8,29 @@ export default class OSSService {
     @injected
     private minio!: Client
 
-    async createBucketIfNotExist(bucketName: string) {
-        if (!await this.minio.bucketExists(bucketName)) {
-            await this.minio.makeBucket(bucketName)
+    async createBucketIfNotExist() {
+        if (!await this.minio.bucketExists(process.env.MINIO_BUCKET!)) {
+            await this.minio.makeBucket(process.env.MINIO_BUCKET!)
             return true
         }
         return false
     }
 
-    async existsObject(bucketName: string, objectName: string) {
-        return (await this.minio.listObjects(bucketName, objectName, false).toArray()).length > 0
+    async existsObject(objectName: string) {
+        return (await this.minio.listObjects(process.env.MINIO_BUCKET!, objectName, false).toArray()).length > 0
     }
 
-    async getObjectUrl(bucketName: string, objectName: string) {
-        return await this.minio.presignedGetObject(bucketName, objectName)
+    async getObjectUrl(objectName: string) {
+        return await this.minio.presignedGetObject(process.env.MINIO_BUCKET!, objectName)
     }
 
-    async putObject(bucketName: string, objectName: string, buffer: stream.Readable | Buffer | string, contentType?: string) {
-        await this.minio.putObject(bucketName, objectName, buffer, undefined, contentType ? { 'Content-Type': contentType } : undefined)
-        return await this.getObjectUrl(bucketName, objectName)
+    async putObject(objectName: string, buffer: stream.Readable | Buffer | string, contentType?: string) {
+        await this.minio.putObject(process.env.MINIO_BUCKET!, objectName, buffer, undefined, contentType ? { 'Content-Type': contentType } : undefined)
+        return await this.getObjectUrl(objectName)
     }
 
-    async removeObject(bucketName: string, objectName: string) {
-        await this.minio.removeObject(bucketName, objectName)
+    async removeObject(objectName: string) {
+        await this.minio.removeObject(process.env.MINIO_BUCKET!, objectName)
     }
 
 }

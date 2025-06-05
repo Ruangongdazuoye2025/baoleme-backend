@@ -1,0 +1,28 @@
+model Address {
+    id            String    @id @default(uuid())
+    userId        String 
+    user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    recipientName String    @map("name")
+    phoneNumber   String    @map("tel")
+
+    province      String
+    city          String
+    district      String
+    town          String
+    detail        String    @map("address")
+
+    longitude     Float    // 这里经纬度好像说Prisma不直接支持存储无类型的数组作为坐标，所以变成两个浮点数了。
+    latitude      Float     
+    
+
+    label         String?   
+    isDefault     Boolean   @default(false)
+    displayOrder  Int       @map("order")
+
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+
+    @@index([userId, displayOrder]) 
+    @@map("addresses")
+}

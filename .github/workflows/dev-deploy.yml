@@ -1,0 +1,66 @@
+name: dev deploy
+
+on:
+  push:
+    branches: [ "dev" ]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: baoleme-backend:${{ github.sha }}
+  IMAGE_NAME_LATEST: baoleme-backend:latest
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image
+      run: |
+        docker build . --file Dockerfile --tag $env:IMAGE_NAME
+        docker image tag $env:IMAGE_NAME $env:IMAGE_NAME_LATEST
+    - name: Run Docker compose
+      run: |
+        docker compose -f scripts/ci-compose.yml up -d --wait
+    - name: Run tests
+      run: |
+        docker container exec baoleme-backend npm run test:unit
+    - name: Save Docker image
+      run: |
+        docker image save $env:IMAGE_NAME_LATEST | gzip > baoleme-backend.tar.gz
+    - name: Upload Docker image
+      uses: actions/upload-artifact@v4
+      with:
+        name: baoleme-backend
+        path: baoleme-backend.tar.gz
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Download Docker image
+      uses: actions/download-artifact@v4
+      with:
+        name: baoleme-backend
+    - name: Upload image to server
+      uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+      with:
+        username: ${{ vars.SSH_USER }}
+        server: ${{ vars.SSH_HOST }}
+        port: ${{ vars.SSH_PORT }}
+        ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+        local_path: ./baoleme-backend.tar.gz
+        remote_path: /home/ci/images
+    - name: Restart backend service
+      uses: appleboy/ssh-action@v1
+      with:
+        username: ${{ vars.SSH_USER }}
+        host: ${{ vars.SSH_HOST }}
+        port: ${{ vars.SSH_PORT }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          docker image load -i /home/ci/images/baoleme-backend.tar.gz
+          docker compose -f /home/ci/server/docker-compose.yml up --wait

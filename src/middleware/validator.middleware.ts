@@ -4,7 +4,6 @@ import { Schema } from 'joi'
 import { ResponseError } from '../util/errors'
 import Joi from 'joi'
 import sharp from 'sharp'
-import stream from 'stream'
 
 const validator = createValidator({ passError: true })
 
@@ -34,43 +33,54 @@ export function requireFile() {
     }
 }
 
+async function testFile(req: Request, cb: (file: Express.Multer.File) => any) {
+    if (req.file) {
+        await cb(req.file)
+    }
+    if (req.files) {
+        for (const index in req.files) {
+            const file = (req.files as any)[index] as Express.Multer.File
+            await cb(file)
+        }
+    }
+}
+
 export function acceptMimeTypes(mimeTypes: RegExp | string[]) {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction) => {
         let validator = Joi.string()
         if (mimeTypes instanceof RegExp) {
             validator = validator.regex(mimeTypes)
         } else {
             validator = validator.allow(...mimeTypes)
         }
-        if (!req.file || validator.validate(req.file.mimetype).error) {
-            next(new ResponseError(401, 'Unacceptable MIME type'))
-        } else {
-            next()
-        }
+        await testFile(req, file => {
+            if (validator.validate(file.mimetype).error)
+                throw new ResponseError(401, 'Unacceptable MIME type')
+        })
+        next()
     }
 }
 
 export function acceptMaximumSize(size: number) {
-    return (req: Request, res: Response, next: NextFunction) => {
-        if (!req.file || Joi.number().max(size).validate(req.file.size).error) {
-            next(new ResponseError(413, 'File too large'))
-        } else {
-            next()
-        }
+    return async (req: Request, res: Response, next: NextFunction) => {
+        await testFile(req, file => {
+            if (Joi.number().max(size).validate(file.size).error) {
+                throw new ResponseError(413, 'File too large')
+            }
+        })
+        next()
     }
 }
 
 export function validateImage() {
     return async (req: Request, res: Response, next: NextFunction) => {
-        if (!req.file) {
-            next(new ResponseError(401, 'Invalid image format'))
-        } else {
+        await testFile(req, async file => {
             try {
-                await sharp(req.file.buffer!).metadata()
-                next()
+                await sharp(file.buffer!).metadata()
             } catch (e) {
-                next(new ResponseError(401, 'Invalid image format'))
+                throw new ResponseError(401, 'Invalid image format')
             }
-        }
+        })
+        next()
     }
 }

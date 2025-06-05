@@ -1,0 +1,64 @@
+enum OrderStatus {
+    UNPAID
+    PREPARING
+    PREPARED
+    DELIVERING
+    FINISHED
+    CANCELED
+}
+
+model OrderItem {
+    id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+    orderId     String  @db.Uuid
+    item        Item?   @relation(fields: [itemId], references: [id], onDelete: SetNull)
+    itemId      String? @db.Uuid
+    name        String
+    quantity    Int
+    price       Int
+}
+
+model Order {
+    id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    status              OrderStatus @default(UNPAID)
+    createdAt           DateTime    @default(now())
+    paidAt              DateTime?
+    preparedAt          DateTime?
+    deliveredAt         DateTime?
+    finishedAt          DateTime?
+    canceledAt          DateTime?
+    customer            User?       @relation(name: "fk_customer", fields: [customerId], references: [id], onDelete: SetNull)
+    customerId          String?     @db.Uuid
+    shop                Shop?       @relation(fields: [shopId], references: [id], onDelete: SetNull)
+    shopId              String?     @db.Uuid
+    rider               User?       @relation(name: "fk_rider", fields: [riderId], references: [id], onDelete: SetNull)
+    riderId             String?     @db.Uuid
+    deliveryFee         Int
+    total               Int
+    note                String
+    deliveryLatitude    Float?
+    deliveryLongitude   Float?
+
+    items               OrderItem[]
+
+    shopLatitude        Float
+    shopLongitude       Float
+    shopProvince        String
+    shopCity            String
+    shopDistrict        String
+    shopTown            String
+    shopAddress         String
+    shopName            String
+    shopTel             String
+
+    customerLatitude    Float
+    customerLongitude   Float
+    customerProvince    String
+    customerCity        String
+    customerDistrict    String
+    customerTown        String
+    customerAddress     String
+    customerName        String
+    customerTel         String
+
+}

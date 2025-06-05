@@ -1,0 +1,18 @@
+model ShopCategory {
+    id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name    String
+    order   Int
+
+    shops   Shop[]
+}
+
+model ItemCategory {
+    id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name    String
+    order   Int
+    
+    shop    Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+    shopId  String  @db.Uuid
+
+    items   Item[]
+}

@@ -3,8 +3,10 @@ import dotenv from 'dotenv'
 import { Express } from 'express'
 import { container, asyncInitializeRoutine } from './app/container'
 import { Logger } from 'pino'
+import { validateEnv } from './app/env'
 
 dotenv.config()
+validateEnv()
 
 const port = parseInt(process.env.APP_PORT!)
 

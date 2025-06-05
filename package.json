@@ -1,30 +1,12 @@
 {
   "name": "ruangongdazuoye-backend",
   "version": "1.0.0",
-  "main": "out/index.js",
+  "main": "out/src/index.js",
   "scripts": {
-    "test": "jest",
-    "build": "tsc -p .",
-    "start": "tsc -p . && node .",
-    "test-c": "jest --coverage"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "testMatch": [
-      "**/test/**/*.test.ts",
-      "**/test/**/*.test.tsx"
-    ],
-    "transform": {
-      "^.+\\.tsx?$": "ts-jest"
-    },
-    "moduleFileExtensions": [
-      "ts",
-      "tsx",
-      "js",
-      "jsx",
-      "json",
-      "node"
-    ]
+    "test:unit": "npx jest --rootDir=test/unit",
+    "build": "npx prisma generate && npx tsc -p .",
+    "prestart": "npm run build",
+    "start": "node ."
   },
   "author": "",
   "license": "AGPL-3.0-only",
@@ -37,6 +19,7 @@
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-joi-validation": "^6.0.0",
+    "haversine-distance": "^1.2.3",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "minio": "^8.0.5",
@@ -66,8 +49,8 @@
     "jest": "^29.7.0",
     "mockingoose": "^2.16.2",
     "prisma": "^6.7.0",
-    "supertest": "^7.1.1",
-    "ts-jest": "^29.3.4",
+    "supertest": "^7.1.0",
+    "ts-jest": "^29.3.2",
     "typescript": "^5.4.5"
   },
   "prisma": {

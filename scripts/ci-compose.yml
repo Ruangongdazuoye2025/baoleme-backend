@@ -1,0 +1,62 @@
+services:
+
+  baoleme-backend:
+    image: baoleme-backend:latest
+    container_name: baoleme-backend
+    restart: always
+    ports:
+      - 3000:3000
+    environment:
+      - APP_PORT=3000
+      - APP_NAME=Baoleme
+      - BASE_URL=https://localhost:3000
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/postgres
+      - JWT_SECRET=jwt_secret
+      - SMTP_HOST=smtp.example.com
+      - SMTP_PORT=587
+      - SMTP_SECURE=
+      - SMTP_USER=smtp_user
+      - SMTP_PASSWORD=smtp_password
+      - MINIO_HOST=minio
+      - MINIO_PORT=9000
+      - MINIO_USE_SSL=
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=baoleme
+      - STATIC_ROOT=.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/hello']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    command: server /data
+    restart: always
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:17
+    container_name: postgres
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=postgres
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5

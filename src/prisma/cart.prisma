@@ -1,0 +1,10 @@
+model CartItem {
+    customer    User    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+    customerId  String  @db.Uuid
+    item        Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+    itemId      String  @db.Uuid
+    
+    quantity    Int
+
+    @@unique([customerId, itemId])
+}
