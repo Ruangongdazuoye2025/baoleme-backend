@@ -95,7 +95,6 @@ export default class ShopService {
                 province: shop.addressProvince,
                 city: shop.addressCity,
                 district: shop.addressDistrict,
-                town: shop.addressTown,
                 address: shop.addressAddress,
                 name: shop.addressName,
                 tel: shop.addressTel,
@@ -140,7 +139,6 @@ export default class ShopService {
                     addressProvince: address.province,
                     addressCity: address.city,
                     addressDistrict: address.district,
-                    addressTown: address.town,
                     addressAddress: address.address,
                     addressName: address.name,
                     addressTel: address.tel
@@ -220,7 +218,6 @@ export default class ShopService {
                     addressProvince: address?.province,
                     addressCity: address?.city,
                     addressDistrict: address?.district,
-                    addressTown: address?.town,
                     addressAddress: address?.address,
                     addressName: address?.name,
                     addressTel: address?.tel,

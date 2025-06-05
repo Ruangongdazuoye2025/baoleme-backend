@@ -24,6 +24,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET=baoleme
       - STATIC_ROOT=.
+      - AMAP_JSCODE=amap_jscode
     depends_on:
       postgres:
         condition: service_healthy

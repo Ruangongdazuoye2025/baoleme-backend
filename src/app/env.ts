@@ -17,6 +17,8 @@ const envSchema = Joi.object({
     MINIO_ACCESS_KEY: Joi.string().required(),
     MINIO_SECRET_KEY: Joi.string().required(),
     MINIO_BUCKET: Joi.string().required(),
+    STATIC_ROOT: Joi.string().required(),
+    AMAP_JSCODE: Joi.string().required(),
 }).unknown(true).required()
 
 export function validateEnv() {

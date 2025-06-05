@@ -46,7 +46,6 @@ model Order {
     shopProvince        String
     shopCity            String
     shopDistrict        String
-    shopTown            String
     shopAddress         String
     shopName            String
     shopTel             String
@@ -56,7 +55,6 @@ model Order {
     customerProvince    String
     customerCity        String
     customerDistrict    String
-    customerTown        String
     customerAddress     String
     customerName        String
     customerTel         String

@@ -25,7 +25,6 @@ export const createShop = Joi.object({
         province: Joi.string().required(),
         city: Joi.string().required(),
         district: Joi.string().required(),
-        town: Joi.string().required(),
         address: Joi.string().required(),
         name: Joi.string().required(),
         tel: Joi.string().required(),
@@ -47,7 +46,6 @@ export interface CreateShop {
         province: string
         city: string
         district: string
-        town: string
         address: string
         name: string
         tel: string
@@ -73,7 +71,6 @@ export const updateShopProfile = Joi.object({
         province: Joi.string().optional(),
         city: Joi.string().optional(),
         district: Joi.string().optional(),
-        town: Joi.string().optional(),
         address: Joi.string().optional(),
         name: Joi.string().optional(),
         tel: Joi.string().optional(),
@@ -96,7 +93,6 @@ export interface UpdateShopProfile {
         province?: string
         city?: string
         district?: string
-        town?: string
         address?: string
         name?: string
         tel?: string
