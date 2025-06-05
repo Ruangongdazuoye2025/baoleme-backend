@@ -7,6 +7,7 @@ import MailService from '../../src/service/mail.service'
 import AuthService from '../../src/service/auth.service'
 import { ITXClientDenyList } from '@prisma/client/runtime/library'
 import bcrypt from 'bcrypt'
+import passport from 'passport'
 
 const mockPrisma = mockDeep<PrismaClient>()
 const mockTokenService = mockDeep<TokenService>()
@@ -20,6 +21,7 @@ container.register({
     tokenService: awilix.asValue(mockTokenService),
     mailService: awilix.asValue(mockMailService),
     authService: awilix.asClass(AuthService),
+    passport: awilix.asValue(mockDeep<passport.Authenticator>()),
 })
 
 type TransactionClient = Omit<PrismaClient, ITXClientDenyList>
