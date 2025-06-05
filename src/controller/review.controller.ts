@@ -14,7 +14,7 @@ class ReviewController {
         const router = Router();
 
         router.post(
-            '/comment',
+            '/comments',
             authService.requireAuth,
             validateBody(ReviewSchema.createReview),
             async (req, res) => {
@@ -25,7 +25,7 @@ class ReviewController {
         )
 
         router.get(
-            '/comment/by-order/:Id',
+            '/comments/by-order/:id',
             authService.requireAuth,
             validateQuery(ReviewSchema.orderIdParams),
             async (req, res) => {
