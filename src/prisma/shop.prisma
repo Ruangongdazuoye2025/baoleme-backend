@@ -30,4 +30,6 @@ model Shop {
     items               Item[]
     itemCategories      ItemCategory[]
     orders              Order[]
+    shopHistory         ShopHistory[]
+    shopFavourite       ShopFavourite[]
 }

@@ -15,4 +15,6 @@ model Item {
     categories              ItemCategory[]
     orderItems              OrderItem[]
     cartItems               CartItem[]
+    itemHistory             ItemHistory[]
+    itemFavourite           ItemFavourite[]
 }
