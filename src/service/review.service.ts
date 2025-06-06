@@ -28,6 +28,36 @@ export default class ReviewService {
         
     }
 
+    private async updateItemsRating(orderEntity: Prisma.OrderGetPayload<{ include: { items: { include: { item: true } }, shop: true } }>, tx: Prisma.TransactionClient) {
+        if (!orderEntity.shop)
+            return
+        for (const item of orderEntity.items) {
+            if (!item.item) {
+                continue
+            }
+            const itemAverageRating = (await tx.review.aggregate({
+                where: { order: { items: { some: { itemId: item.item.id } } } },
+                _avg: { rating: true },
+            }))._avg.rating || 0
+            await tx.item.update({
+                where: { id: item.item.id },
+                data: {
+                    rating: itemAverageRating,
+                }
+            })
+        }
+        const shopAverageRating = (await tx.review.aggregate({
+            where: { order: { shopId: orderEntity.shop.id } },
+            _avg: { rating: true },
+        }))._avg.rating || 0
+        await tx.shop.update({
+            where: { id: orderEntity.shop.id },
+            data: {
+                rating: shopAverageRating,
+            }
+        })
+    }
+
     async createReview(userId: string, request: CreateReview) {
         const { order, rating, content } = request;
         return await this.prisma.$transaction(async tx => {
@@ -42,6 +72,7 @@ export default class ReviewService {
                 },
                 include: {
                     shop: true,
+                    items: { include: { item: true } },
                     review: true,
                 }
             })
@@ -57,7 +88,7 @@ export default class ReviewService {
             if (orderEntity.review) {
                 throw new ResponseError(409, "Order already has a review")
             }
-            return await tx.review.create({
+            const review = await tx.review.create({
                 data: {
                     userId: userId,
                     orderId: orderEntity.id,
@@ -66,6 +97,8 @@ export default class ReviewService {
                 },
                 include: { user: true }
             })
+            await this.updateItemsRating(orderEntity, tx)
+            return review
         })
     }
 
@@ -121,39 +154,48 @@ export default class ReviewService {
             if (!currentUser) {
                 throw new ResponseError(401, "User not found")
             }
-            const review = await tx.review.findUnique({ where: { id: id}})
+            const review = await tx.review.findUnique({ 
+                where: { id: id },
+                include: { order: { include: { items: { include: { item: true } }, shop: true } } }
+            })
             if (!review) {
                 throw new ResponseError(404, "Review not found")
             }
             if (review.userId !== userId && currentUser.role !== "ADMIN") {
                 throw new ResponseError(403, "You are not authorized to update this review or admin")
             }
-            return await tx.review.update({
+            const ret = await tx.review.update({
                 where: { id: id },
                 data: {
                     rating: updateReview.rating,
                     content: updateReview.content,
                 }
             })
+            await this.updateItemsRating(review.order, tx)
+            return ret
         })
     }
 
     async deleteReview(userId: string, id: string) {
-        return await this.prisma.$transaction(async tx => {
+        await this.prisma.$transaction(async tx => {
             const currentUser = await tx.user.findUnique({ where: { id: userId}})
             if (!currentUser) {
                 throw new ResponseError(401, "User not found")
             }
-            const review = await tx.review.findUnique({ where: { id: id}})
+            const review = await tx.review.findUnique({
+                where: { id },
+                include: { order: { include: { items: { include: { item: true } }, shop: true } } }
+            })
             if (!review) {
                 throw new ResponseError(404, "Review not found")
             }
             if (review.userId !== userId && currentUser.role !== "ADMIN") {
                 throw new ResponseError(403, "Permission denied")
             }
-            return await tx.review.delete({
-                where: { id: id },
+            await tx.review.delete({
+                where: { id },
             })
+            this.updateItemsRating(review.order, tx)
         })
     }
 }
