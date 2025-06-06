@@ -1,0 +1,15 @@
+model Review {
+  id String @id @default("dbggenerated_uuid()") @db.Uuid
+
+  content String
+  rating  Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderId String @unique
+  userId  String
+
+  order Order @relation(fields: [orderId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+}

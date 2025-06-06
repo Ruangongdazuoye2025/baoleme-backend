@@ -1,11 +1,10 @@
 import bcrypt from 'bcrypt'
 import { PrismaClient, User } from '@prisma/client'
-import passport from 'passport'
-import { Strategy as JWTStrategy, ExtractJwt } from 'passport-jwt'
 import { ResponseError } from '../util/errors'
 import { classInjection, injected } from '../util/injection-decorators'
 import TokenService from './token.service'
 import MailService from './mail.service'
+import passport from 'passport'
 
 const SALT_ROUNDS = 10
 
@@ -21,24 +20,8 @@ export default class AuthService {
     @injected
     private mailService!: MailService
 
-    private passport: passport.Authenticator
-
-    constructor() {
-        this.passport = new passport.Authenticator()
-        const jwtOptions = {
-            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-            secretOrKey: process.env.JWT_SECRET!
-        }
-
-        this.passport.use(new JWTStrategy(jwtOptions, async (payload, done) => {
-            try {
-                const user = await this.getUserById(payload.sub, payload.pwd)
-                return user ? done(null, user) : done(new ResponseError(401, 'Unauthorized'))
-            } catch (error) {
-                return done(new ResponseError(401, 'Unauthorized'))
-            }
-        }))
-    }
+    @injected('passport')
+    private passport!: passport.Authenticator
 
     requireAuth() {
         return this.passport.authenticate('jwt', { session: false, failWithError: true })
