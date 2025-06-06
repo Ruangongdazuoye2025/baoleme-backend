@@ -419,4 +419,108 @@ export default class HistoryService {
             return itemFavourite
         })
     }
+
+    async deleteShopHistory(currentUserId: string, historyId: string) {
+        return await this.prisma.$transaction(async tx => {
+            const user = await tx.user.findUnique({
+                where: { id: currentUserId }
+            });
+            if (!user) {
+                throw new ResponseError(401, 'Unauthorized');
+            }
+
+            const history = await tx.shopHistory.findUnique({
+                where: { id: historyId }
+            });
+            if (!history) {
+                throw new ResponseError(404, 'Shop history not found');
+            }
+
+            if (history.userId !== currentUserId) {
+                throw new ResponseError(403, 'Forbidden');
+            }
+
+            return await tx.shopHistory.delete({
+                where: { id: historyId }
+            });
+        });
+    }
+
+    async deleteItemHistory(currentUserId: string, historyId: string) {
+        return await this.prisma.$transaction(async tx => {
+            const user = await tx.user.findUnique({
+                where: { id: currentUserId }
+            });
+            if (!user) {
+                throw new ResponseError(401, 'Unauthorized');
+            }
+
+            const history = await tx.itemHistory.findUnique({
+                where: { id: historyId }
+            });
+            if (!history) {
+                throw new ResponseError(404, 'Item history not found');
+            }
+
+            if (history.userId !== currentUserId) {
+                throw new ResponseError(403, 'Forbidden');
+            }
+
+            return await tx.itemHistory.delete({
+                where: { id: historyId }
+            });
+        });
+    }
+
+    async deleteShopFavourite(currentUserId: string, favouriteId: string) {
+        return await this.prisma.$transaction(async tx => {
+            const user = await tx.user.findUnique({
+                where: { id: currentUserId }
+            });
+            if (!user) {
+                throw new ResponseError(401, 'Unauthorized');
+            }
+
+            const favourite = await tx.shopFavourite.findUnique({
+                where: { id: favouriteId }
+            });
+            if (!favourite) {
+                throw new ResponseError(404, 'Shop favourite not found');
+            }
+
+            if (favourite.userId !== currentUserId) {
+                throw new ResponseError(403, 'Forbidden');
+            }
+
+            return await tx.shopFavourite.delete({
+                where: { id: favouriteId }
+            });
+        });
+    }
+
+    async deleteItemFavourite(currentUserId: string, favouriteId: string) {
+        return await this.prisma.$transaction(async tx => {
+            const user = await tx.user.findUnique({
+                where: { id: currentUserId }
+            });
+            if (!user) {
+                throw new ResponseError(401, 'Unauthorized');
+            }
+
+            const favourite = await tx.itemFavourite.findUnique({
+                where: { id: favouriteId }
+            });
+            if (!favourite) {
+                throw new ResponseError(404, 'Item favourite not found');
+            }
+
+            if (favourite.userId !== currentUserId) {
+                throw new ResponseError(403, 'Forbidden');
+            }
+
+            return await tx.itemFavourite.delete({
+                where: { id: favouriteId }
+            });
+        });
+    }
 }

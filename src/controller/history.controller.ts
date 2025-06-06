@@ -109,6 +109,49 @@ class HistoryController {
             }
         )
 
+        router.delete(
+            '/records/shops',
+            authService.requireAuth(),
+            validateBody(HistorySchema.historyIdParams),
+            async (req, res) => {
+                const request = req.body as HistorySchema.HistoryIdParams
+                await historyService.deleteShopHistory(req.user!.id, request.id)
+                res.status(204).send()
+            }
+        )
+
+        router.delete(
+            '/records/items',
+            authService.requireAuth(),
+            validateBody(HistorySchema.historyIdParams),
+            async (req, res) => {
+                const request = req.body as HistorySchema.HistoryIdParams
+                await historyService.deleteItemHistory(req.user!.id, request.id)
+                res.status(204).send()
+            }
+        )
+
+        router.delete(
+            '/favorites/shops',
+            authService.requireAuth(),
+            validateBody(HistorySchema.historyIdParams),
+            async (req, res) => {
+                const request = req.body as HistorySchema.HistoryIdParams
+                await historyService.deleteShopFavourite(req.user!.id, request.id)
+                res.status(204).send()
+            }
+        )
+
+        router.delete(
+            '/favorites/items',
+            authService.requireAuth(),
+            validateBody(HistorySchema.historyIdParams),
+            async (req, res) => {
+                const request = req.body as HistorySchema.HistoryIdParams
+                await historyService.deleteItemFavourite(req.user!.id, request.id)
+                res.status(204).send()
+            }
+        )
     }
 }
 
