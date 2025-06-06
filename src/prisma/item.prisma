@@ -12,7 +12,9 @@ model Item {
   rating                Int      @default(0)
   sale                  Int      @default(0)
 
-  categories ItemCategory[]
-  orderItems OrderItem[]
-  cartItems  CartItem[]
+  categories              ItemCategory[]
+  orderItems              OrderItem[]
+  cartItems               CartItem[]
+  itemHistory             ItemHistory[]
+  itemFavourite           ItemFavourite[]
 }
