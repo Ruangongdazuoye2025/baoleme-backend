@@ -3,6 +3,7 @@ model CartItem {
   customerId String @db.Uuid
   item       Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
   itemId     String @db.Uuid
+  createdAt  DateTime @default(now())
 
   quantity Int
 
