@@ -2,6 +2,8 @@ import { Prisma, PrismaClient, } from "@prisma/client";
 import { classInjection, injected } from "../util/injection-decorators";
 import OSSService from "./oss.service";
 import { ResponseError } from "../util/errors";
+import ShopService from "./shop.service";
+import ItemService from "./item.service";
 
 @classInjection
 export default class HistoryService {
@@ -10,127 +12,41 @@ export default class HistoryService {
     private prisma!: PrismaClient
 
     @injected
-    private ossService!: OSSService
+    private shopService!: ShopService
 
-    async getShopImageLinks(shopId: string) {
-        const [coverOrigin, coverThumbnail, detailOrigin, detailThumbnail, licenseOrigin, licenseThumbnail] = await Promise.all([
-            this.ossService.getObjectUrl(`shops/${shopId}/cover.webp`),
-            this.ossService.getObjectUrl(`shops/${shopId}/cover-thumbnail.webp`),
-            this.ossService.getObjectUrl(`shops/${shopId}/detail.webp`),
-            this.ossService.getObjectUrl(`shops/${shopId}/detail-thumbnail.webp`),
-            this.ossService.getObjectUrl(`shops/${shopId}/license.webp`),
-            this.ossService.getObjectUrl(`shops/${shopId}/license-thumbnail.webp`),
-        ])
-        return {
-            cover: { origin: coverOrigin, thumbnail: coverThumbnail },
-            detailImage: { origin: detailOrigin, thumbnail: detailThumbnail },
-            license: { origin: licenseOrigin, thumbnail: licenseThumbnail }
-        }
-    }
+    @injected
+    private itemService!: ItemService
 
-    async shopDataToFullShopInfo(shop: Prisma.ShopGetPayload<{ include: { categories: true } }>) {
-        return {
-            id: shop.id,
-            owner: shop.ownerId,
-            createdAt: shop.createdAt,
-            ...this.shopDataToShopProfile(shop),
-            ...await this.getShopImageLinks(shop.id),
-            rating: shop.rating,
-            sale: shop.sale,
-            averagePrice: shop.averagePrice,
-        }
-    }
 
-    shopDataToShopProfile(shop: Prisma.ShopGetPayload<{ include: { categories: true } }>) {
+    async itemHistoryDataToFullItemHistoryInfo(itemHistory: Prisma.ItemHistoryGetPayload<{ include: { item: { include: { categories: true; shop: true } } } }>) {
         return {
-            name: shop.name,
-            description: shop.description,
-            categories: shop.categories.map(category => category.id),
-            address: {
-                coordinate: [shop.addressLatitude, shop.addressLongitude],
-                province: shop.addressProvince,
-                city: shop.addressCity,
-                district: shop.addressDistrict,
-                address: shop.addressAddress,
-                name: shop.addressName,
-                tel: shop.addressTel,
-            },
-            verified: shop.verified,
-            opened: shop.opened,
-            openTimeStart: shop.openTimeStart,
-            openTimeEnd: shop.openTimeEnd,
-            deliveryThreshold: shop.deliveryThreshold,
-            deliveryPrice: shop.deliveryPrice,
-            maximumDistance: shop.maximumDistance,
-        }
-    }
-
-    async getItemImageLinks(itemId: string) {
-        const [coverOrigin, coverThumbnail] = await Promise.all([
-            this.ossService.getObjectUrl(`items/${itemId}/cover.webp`),
-            this.ossService.getObjectUrl(`items/${itemId}/cover-thumbnail.webp`),
-        ])
-        return {
-            cover: { origin: coverOrigin, thumbnail: coverThumbnail }
-        }
-    }
-
-    async itemDataToFullItemInfo(item: Prisma.ItemGetPayload<{ include: { categories: true, shop: true } }>) {
-        return {
-            id: item.id,
-            shopId: item.shopId,
-            createdAt: item.createdAt,
-            ...this.itemDataToItemProfile(item),
-            ...await this.getItemImageLinks(item.id),
-        }
-    }
-
-    itemDataToItemProfile(item: Prisma.ItemGetPayload<{ include: { categories: true, shop: true } }>) {
-        return {
-            name: item.name,
-            description: item.description,
-            available: item.available,
-            stockout: item.stockout,
-            price: item.price,
-            priceWithoutPromotion: item.priceWithoutPromotion,
-            categories: item.categories.map(category => category.id),
-            rating:item.rating,
-            sale:item.sale,
-        }
-    }
-    async itemHistoryDataToFullItemHistoryInfo(itemHistory: Prisma.ItemHistoryGetPayload<{ include:{item:{include:{categories:true;shop:true}}}}>){
-        return {
-            id: itemHistory.id,
-            ...this.itemDataToFullItemInfo(itemHistory.item),
+            item: this.itemService.itemDataToFullItemInfo(itemHistory.item),
             createdAt: itemHistory.createdAt
         }
     }
 
-    async shopHistoryDataToFullShopHistoryInfo(shopHistory: Prisma.ShopHistoryGetPayload<{ include:{shop:{include:{categories:true;owner:true}}}}>){
+    async shopHistoryDataToFullShopHistoryInfo(shopHistory: Prisma.ShopHistoryGetPayload<{ include: { shop: { include: { categories: true; owner: true } } } }>) {
         return {
-            id: shopHistory.id,
-            ...this.shopDataToFullShopInfo(shopHistory.shop),
+            shop: this.shopService.shopDataToFullShopInfo(shopHistory.shop),
             createdAt: shopHistory.createdAt
         }
     }
 
-    async itemFavouriteDataToFullItemFavouriteInfo(itemFavourite: Prisma.ItemFavouriteGetPayload<{ include:{item:{include:{categories:true;shop:true}}}}>){
+    async itemFavouriteDataToFullItemFavouriteInfo(itemFavourite: Prisma.ItemFavouriteGetPayload<{ include: { item: { include: { categories: true; shop: true } } } }>) {
         return {
-            id: itemFavourite.id,
-            ...this.itemDataToFullItemInfo(itemFavourite.item),
+            item: this.itemService.itemDataToFullItemInfo(itemFavourite.item),
             createdAt: itemFavourite.createdAt
         }
     }
 
-    async shopFavouriteDataToFullShopFavouriteInfo(shopFavourite: Prisma.ShopFavouriteGetPayload<{ include:{shop:{include:{categories:true;owner:true}}}}>){
+    async shopFavouriteDataToFullShopFavouriteInfo(shopFavourite: Prisma.ShopFavouriteGetPayload<{ include: { shop: { include: { categories: true; owner: true } } } }>) {
         return {
-            id: shopFavourite.id,
-            ...this.shopDataToFullShopInfo(shopFavourite.shop),
+            shop: this.shopService.shopDataToFullShopInfo(shopFavourite.shop),
             createdAt: shopFavourite.createdAt
         }
     }
 
-    async getShopHistory(currentUserId:string,pageSkip:number,pageLimit:number){
+    async getShopHistory(currentUserId: string, pageSkip: number, pageLimit: number) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -157,7 +73,7 @@ export default class HistoryService {
         })
     }
 
-    async createShopHistory(currentUserId:string,shopId:string){
+    async createShopHistory(currentUserId: string, shopId: string) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -173,47 +89,23 @@ export default class HistoryService {
                 throw new ResponseError(404, 'Shop not found')
             }
 
-            const existingHistory = await tx.shopHistory.findFirst({
-                where: {
-                    userId: currentUserId,
-                    shopId: shopId
-                }
+            return await tx.shopHistory.upsert({
+                where: { userId_shopId: { userId: currentUserId, shopId } },
+                update: { createdAt: new Date() },
+                create: { userId: currentUserId, shopId },
+                include: {
+                    shop: {
+                        include: {
+                            owner: true,
+                            categories: true,
+                        }
+                    }
+                },
             })
-            if (existingHistory) {
-                return await tx.shopHistory.update({
-                    where: { id: existingHistory.id },
-                    data: { createdAt: new Date() },
-                    include: {
-                    shop: {
-                        include: {
-                            owner: true,
-                            categories: true,
-                        }
-                    }
-                },
-                })
-            } else {
-                return await tx.shopHistory.create({
-                    data: {
-                        userId: currentUserId,
-                        shopId: shopId,
-                        createdAt: new Date()
-                    },
-                    include: {
-                    shop: {
-                        include: {
-                            owner: true,
-                            categories: true,
-                        }
-                    }
-                },
-                })
-            }
-
         })
     }
 
-    async getItemHistory(currentUserId:string,pageSkip:number,pageLimit:number){
+    async getItemHistory(currentUserId: string, pageSkip: number, pageLimit: number) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -240,7 +132,7 @@ export default class HistoryService {
         })
     }
 
-    async createItemHistory(currentUserId:string,itemId:string){
+    async createItemHistory(currentUserId: string, itemId: string) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -256,47 +148,23 @@ export default class HistoryService {
                 throw new ResponseError(404, 'Item not found')
             }
 
-            const existingHistory = await tx.itemHistory.findFirst({
-                where: {
-                    userId: currentUserId,
-                    itemId: itemId
-                }
-            })
-            if (existingHistory) {
-                return await tx.itemHistory.update({
-                    where: { id: existingHistory.id },
-                    data: { createdAt: new Date() },
-                    include: {
+            return await tx.itemHistory.upsert({
+                where: { userId_itemId: { userId: currentUserId, itemId } },
+                update: { createdAt: new Date() },
+                create: { userId: currentUserId, itemId },
+                include: {
                     item: {
                         include: {
-                            categories: true,
                             shop: true,
+                            categories: true,
                         }
                     }
                 },
-                })
-            } else {
-                return await tx.itemHistory.create({
-                    data: {
-                        userId: currentUserId,
-                        itemId: itemId,
-                        createdAt: new Date()
-                    },
-                    include: {
-                    item: {
-                        include: {
-                            shop: true,
-                            categories: true,
-                        }
-                    }
-                    },
-                })
-            }
-
+            })
         })
     }
 
-    async getShopFavourite(currentUserId:string,pageSkip:number,pageLimit:number){
+    async getShopFavourite(currentUserId: string, pageSkip: number, pageLimit: number) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -323,7 +191,7 @@ export default class HistoryService {
         })
     }
 
-    async createShopFavourite(currentUserId:string,shopId:string){
+    async createShopFavourite(currentUserId: string, shopId: string) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -339,12 +207,10 @@ export default class HistoryService {
                 throw new ResponseError(404, 'Shop not found')
             }
 
-            const shopFavourite= await tx.shopFavourite.create({
-                data: {
-                    userId: currentUserId,
-                    shopId: shopId,
-                    createdAt: new Date()
-                },
+            return await tx.shopFavourite.upsert({
+                where: { userId_shopId: { userId: currentUserId, shopId } },
+                update: { createdAt: new Date() },
+                create: { userId: currentUserId, shopId },
                 include: {
                     shop: {
                         include: {
@@ -354,11 +220,10 @@ export default class HistoryService {
                     }
                 },
             })
-            return shopFavourite
         })
     }
 
-    async getItemFavourite(currentUserId:string,pageSkip:number,pageLimit:number){
+    async getItemFavourite(currentUserId: string, pageSkip: number, pageLimit: number) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -385,7 +250,7 @@ export default class HistoryService {
         })
     }
 
-    async createItemFavourite(currentUserId:string,itemId:string){
+    async createItemFavourite(currentUserId: string, itemId: string) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -401,12 +266,10 @@ export default class HistoryService {
                 throw new ResponseError(404, 'Item not found')
             }
 
-            const itemFavourite= await tx.itemFavourite.create({
-                data: {
-                    userId: currentUserId,
-                    itemId: itemId,
-                    createdAt: new Date()
-                },
+            return await tx.itemFavourite.upsert({
+                where: { userId_itemId: { userId: currentUserId, itemId } },
+                update: { createdAt: new Date() },
+                create: { userId: currentUserId, itemId },
                 include: {
                     item: {
                         include: {
@@ -416,11 +279,10 @@ export default class HistoryService {
                     }
                 },
             })
-            return itemFavourite
         })
     }
 
-    async deleteShopHistory(currentUserId: string, historyId: string) {
+    async deleteShopHistory(currentUserId: string, shopId: string) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -430,23 +292,19 @@ export default class HistoryService {
             }
 
             const history = await tx.shopHistory.findUnique({
-                where: { id: historyId }
+                where: { userId_shopId: { userId: currentUserId, shopId } },
+                select: { userId: true, shopId: true }
             });
             if (!history) {
                 throw new ResponseError(404, 'Shop history not found');
             }
-
-            if (history.userId !== currentUserId) {
-                throw new ResponseError(403, 'Forbidden');
-            }
-
             return await tx.shopHistory.delete({
-                where: { id: historyId }
+                where: { userId_shopId: history }
             });
         });
     }
 
-    async deleteItemHistory(currentUserId: string, historyId: string) {
+    async deleteItemHistory(currentUserId: string, itemId: string) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -456,23 +314,19 @@ export default class HistoryService {
             }
 
             const history = await tx.itemHistory.findUnique({
-                where: { id: historyId }
+                where: { userId_itemId: { userId: currentUserId, itemId } },
+                select: { userId: true, itemId: true }
             });
             if (!history) {
                 throw new ResponseError(404, 'Item history not found');
             }
-
-            if (history.userId !== currentUserId) {
-                throw new ResponseError(403, 'Forbidden');
-            }
-
             return await tx.itemHistory.delete({
-                where: { id: historyId }
+                where: { userId_itemId: history }
             });
         });
     }
 
-    async deleteShopFavourite(currentUserId: string, favouriteId: string) {
+    async deleteShopFavourite(currentUserId: string, shopId: string) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -482,23 +336,19 @@ export default class HistoryService {
             }
 
             const favourite = await tx.shopFavourite.findUnique({
-                where: { id: favouriteId }
+                where: { userId_shopId: { userId: currentUserId, shopId } },
+                select: { userId: true, shopId: true }
             });
             if (!favourite) {
                 throw new ResponseError(404, 'Shop favourite not found');
             }
-
-            if (favourite.userId !== currentUserId) {
-                throw new ResponseError(403, 'Forbidden');
-            }
-
             return await tx.shopFavourite.delete({
-                where: { id: favouriteId }
+                where: { userId_shopId: favourite }
             });
         });
     }
 
-    async deleteItemFavourite(currentUserId: string, favouriteId: string) {
+    async deleteItemFavourite(currentUserId: string, itemId: string) {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({
                 where: { id: currentUserId }
@@ -508,18 +358,14 @@ export default class HistoryService {
             }
 
             const favourite = await tx.itemFavourite.findUnique({
-                where: { id: favouriteId }
+                where: { userId_itemId: { userId: currentUserId, itemId } },
+                select: { userId: true, itemId: true }
             });
             if (!favourite) {
                 throw new ResponseError(404, 'Item favourite not found');
             }
-
-            if (favourite.userId !== currentUserId) {
-                throw new ResponseError(403, 'Forbidden');
-            }
-
             return await tx.itemFavourite.delete({
-                where: { id: favouriteId }
+                where: { userId_itemId: favourite }
             });
         });
     }

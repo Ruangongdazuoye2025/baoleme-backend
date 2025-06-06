@@ -1,35 +1,31 @@
 model ShopHistory {
-    id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     userId    String   @db.Uuid
     shopId    String   @db.Uuid
     shop      Shop     @relation(fields: [shopId], references: [id])
     createdAt DateTime @default(now())
-    @@unique([userId, shopId])
+    @@id([userId, shopId])
 }
 
 model ShopFavourite {
-    id        String   @id @default(uuid())
     userId    String   @db.Uuid
     shopId    String   @db.Uuid
     shop      Shop     @relation(fields: [shopId], references: [id])
     createdAt DateTime @default(now())
-    @@unique([userId, shopId])
+    @@id([userId, shopId])
 }
 
 model ItemHistory {
-    id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     userId    String   @db.Uuid
     itemId    String   @db.Uuid
     item      Item     @relation(fields: [itemId], references: [id])
     createdAt DateTime @default(now())
-    @@unique([userId, itemId])
+    @@id([userId, itemId])
 }
 
 model ItemFavourite {
-    id        String   @id @default(uuid())
     userId    String   @db.Uuid
     itemId    String   @db.Uuid
     item      Item     @relation(fields: [itemId], references: [id])
     createdAt DateTime @default(now())
-    @@unique([userId, itemId])
+    @@id([userId, itemId])
 }

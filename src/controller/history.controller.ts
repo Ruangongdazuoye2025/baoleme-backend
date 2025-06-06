@@ -2,7 +2,7 @@ import { Router } from "express";
 import { factoryInjection, factoryMethod, injected } from "../util/injection-decorators";
 import AuthService from "../service/auth.service";
 
-import { validateBody,validateQuery } from "../middleware/validator.middleware";
+import { validateParams,validateQuery } from "../middleware/validator.middleware";
 import HistoryService from "../service/history.service";
 import * as HistorySchema from "../schema/history.schema";
 class HistoryController {
@@ -27,12 +27,12 @@ class HistoryController {
         )
 
         router.post(
-            '/records/shops',
+            '/records/shops/:id',
             authService.requireAuth(),
-            validateBody(HistorySchema.historyIdParams),
+            validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
-                const request = req.body as HistorySchema.HistoryIdParams
-                const shopHistory = await historyService.createShopHistory(req.user!.id, request.id)
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                const shopHistory = await historyService.createShopHistory(req.user!.id, id)
                 res.status(200).json(await historyService.shopHistoryDataToFullShopHistoryInfo(shopHistory))
             }
         )
@@ -51,12 +51,12 @@ class HistoryController {
         )
 
         router.post(
-            '/records/items',
+            '/records/items/:id',
             authService.requireAuth(),
-            validateBody(HistorySchema.historyIdParams),
+            validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
-                const request = req.body as HistorySchema.HistoryIdParams
-                const itemHistory = await historyService.createItemHistory(req.user!.id, request.id)
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                const itemHistory = await historyService.createItemHistory(req.user!.id, id)
                 res.status(200).json(await historyService.itemHistoryDataToFullItemHistoryInfo(itemHistory))
             }
         )
@@ -75,12 +75,12 @@ class HistoryController {
         )
 
         router.post(
-            '/favorites/shops',
+            '/favorites/shops/:id',
             authService.requireAuth(),
-            validateBody(HistorySchema.historyIdParams),
+            validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
-                const request = req.body as HistorySchema.HistoryIdParams
-                const shopFavourite = await historyService.createShopFavourite(req.user!.id, request.id)
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                const shopFavourite = await historyService.createShopFavourite(req.user!.id, id)
                 res.status(200).json(await historyService.shopFavouriteDataToFullShopFavouriteInfo(shopFavourite))
             }
         )
@@ -99,59 +99,61 @@ class HistoryController {
         )
 
         router.post(
-            '/favorites/items',
+            '/favorites/items/:id',
             authService.requireAuth(),
-            validateBody(HistorySchema.historyIdParams),
+            validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
-                const request = req.body as HistorySchema.HistoryIdParams
-                const itemFavourite = await historyService.createItemFavourite(req.user!.id, request.id)
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                const itemFavourite = await historyService.createItemFavourite(req.user!.id, id)
                 res.status(200).json(await historyService.itemFavouriteDataToFullItemFavouriteInfo(itemFavourite))
             }
         )
 
         router.delete(
-            '/records/shops',
+            '/records/shops/:id',
             authService.requireAuth(),
-            validateBody(HistorySchema.historyIdParams),
+            validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
-                const request = req.body as HistorySchema.HistoryIdParams
-                await historyService.deleteShopHistory(req.user!.id, request.id)
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                await historyService.deleteShopHistory(req.user!.id, id)
                 res.status(204).send()
             }
         )
 
         router.delete(
-            '/records/items',
+            '/records/items/:id',
             authService.requireAuth(),
-            validateBody(HistorySchema.historyIdParams),
+            validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
-                const request = req.body as HistorySchema.HistoryIdParams
-                await historyService.deleteItemHistory(req.user!.id, request.id)
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                await historyService.deleteItemHistory(req.user!.id, id)
                 res.status(204).send()
             }
         )
 
         router.delete(
-            '/favorites/shops',
+            '/favorites/shops/:id',
             authService.requireAuth(),
-            validateBody(HistorySchema.historyIdParams),
+            validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
-                const request = req.body as HistorySchema.HistoryIdParams
-                await historyService.deleteShopFavourite(req.user!.id, request.id)
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                await historyService.deleteShopFavourite(req.user!.id, id)
                 res.status(204).send()
             }
         )
 
         router.delete(
-            '/favorites/items',
+            '/favorites/items/:id',
             authService.requireAuth(),
-            validateBody(HistorySchema.historyIdParams),
+            validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
-                const request = req.body as HistorySchema.HistoryIdParams
-                await historyService.deleteItemFavourite(req.user!.id, request.id)
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                await historyService.deleteItemFavourite(req.user!.id, id)
                 res.status(204).send()
             }
         )
+
+        return router
     }
 }
 
