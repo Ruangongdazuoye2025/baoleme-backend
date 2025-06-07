@@ -1,4 +1,4 @@
-npm run build  # 由于 TypedSQL 需要依赖 PostgreSQL 的原因只能在运行前编译
-node scripts/make-bucket
 npx prisma migrate deploy
+npm run build  # TypedSQL 似乎只能在运行前临时编译一遍
+node scripts/make-bucket
 npm start
