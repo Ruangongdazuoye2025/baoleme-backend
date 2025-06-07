@@ -19,7 +19,7 @@ export function validateQuery(schema: Schema) {
         } else {
             const url = new URL(req.url, `http://localhost`)
             url.search = new URLSearchParams(ret.value as Record<string, string>).toString()
-            req.url = url.pathname + (url.search ? `?${url.search}` : '')
+            req.url = url.pathname + (url.search ? `${url.search}` : '')
             next()
         }
     }
