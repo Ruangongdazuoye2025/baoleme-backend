@@ -136,6 +136,32 @@ class ShopController {
             }
         )
 
+        router.get(
+            '/shops/:id/stats',
+            authService.requireAuth(),
+            validateParams(ShopSchema.shopIdParams),
+            validateQuery(ShopSchema.shopStatsQuery),
+            async (req, res) => {
+                const { id } = req.params
+                const { s, t } = req.query as unknown as ShopSchema.ShopStatsQuery
+                const stats = await shopService.getShopStats(req.user!.id, id, s, t)
+                res.status(200).json(stats)
+            }
+        )
+
+        router.get(
+            '/shops/:id/top-items',
+            authService.requireAuth(),
+            validateParams(ShopSchema.shopIdParams),
+            validateQuery(ShopSchema.shopTopItemsQuery),
+            async (req, res) => {
+                const { id } = req.params
+                const { s, t, n } = req.query as unknown as ShopSchema.ShopTopItemsQuery
+                const result = await shopService.getShopTopItems(req.user!.id, id, s, t, n)
+                res.status(200).json(result)
+            }
+        )
+
         return router
     }
 

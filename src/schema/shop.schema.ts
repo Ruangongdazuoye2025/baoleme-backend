@@ -113,3 +113,25 @@ export const updateShopOwner = Joi.object({
 export interface UpdateShopOwner {
     owner: string
 }
+
+export const shopStatsQuery = Joi.object({
+    s: Joi.string().isoDate().required(),
+    t: Joi.string().isoDate().required(),
+}).required()
+
+export interface ShopStatsQuery {
+    s: string
+    t: string
+}
+
+export const shopTopItemsQuery = Joi.object({
+    s: Joi.string().isoDate().required(),
+    t: Joi.string().isoDate().required(),
+    n: Joi.number().integer().min(1).max(10).default(10).optional(),
+}).required()
+
+export interface ShopTopItemsQuery {
+    s: string
+    t: string
+    n?: number
+}

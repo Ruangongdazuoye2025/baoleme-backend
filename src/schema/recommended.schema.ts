@@ -71,11 +71,11 @@ export const getRecommendedOrdersQuery = Joi.object({
 }).required()
 
 export interface GetRecommendedOrdersQuery {
-    d?: number
-    t?: number
-    lat: number
-    lon: number
-    m?: number
+    d?: string
+    t?: string
+    lat: string
+    lon: string
+    m?: string
     p: string
     pn: string
 }

@@ -9,11 +9,11 @@ export interface ItemIdParams {
 }
 
 export const shopIdParams = Joi.object({
-    id: Joi.string().uuid().required()
+    shopId: Joi.string().uuid().required()
 })
 
 export interface ShopIdParams {
-    id: string
+    shopId: string
 }
 
 export const shopIdAndcategoryIdParams = Joi.object({

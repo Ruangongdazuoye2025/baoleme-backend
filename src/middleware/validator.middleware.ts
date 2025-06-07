@@ -49,8 +49,10 @@ async function testFile(req: Request, cb: (file: Express.Multer.File) => any) {
     }
     if (req.files) {
         for (const index in req.files) {
-            const file = (req.files as any)[index] as Express.Multer.File
-            await cb(file)
+            const files = [(req.files as any)[index]].flat() as Express.Multer.File[]
+            for (const file of files) {
+                await cb(file)
+            }
         }
     }
 }
