@@ -335,6 +335,46 @@ export default class OrderService {
         })
     }
 
+    private async updateItemsSale(order: Prisma.OrderGetPayload<{ include: { items: { include: { item: true } }, shop: true } }>, tx: Prisma.TransactionClient) {
+        const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        if (!order.shop)
+            return
+        for (const item of order.items) {
+            if (!item.item)
+                continue
+            const itemOrderSum = (await tx.orderItem.aggregate({
+                _sum: { quantity: true },
+                where: { 
+                    itemId: item.item.id,
+                    order: {
+                        status: 'FINISHED',
+                        finishedAt: {
+                            gte: oneMonthAgo,
+                        }
+                    },
+                },
+            }))._sum.quantity || 0
+            await tx.item.update({
+                where: { id: item.item.id },
+                data: { sale: itemOrderSum },
+            })
+        }
+        const shopOrderSum = (await tx.order.aggregate({
+            _sum: { total: true },
+            where: {
+                shopId: order.shop.id,
+                status: 'FINISHED',
+                finishedAt: {
+                    gte: oneMonthAgo,
+                }
+            },
+        }))._sum.total || 0
+        await tx.shop.update({
+            where: { id: order.shop.id },
+            data: { sale: shopOrderSum },
+        })
+    }
+
     async updateOrderStatus(currentUserId: string, id: string, status: Status) {
         return await this.prisma.$transaction(async tx => {
             const currentUser = await tx.user.findUnique({
@@ -358,22 +398,28 @@ export default class OrderService {
             ]
             const permittedStatusProp = stateTransition.find(([permitted]) => permitted)?.[1]
             if (permittedStatusProp) {
-                return await tx.order.update({
+                const ret = await tx.order.update({
                     where: { id },
                     data: {
                         status: toOrderStatus(status),
                         [permittedStatusProp]: new Date(),
                     },
-                    include: { items: true },
+                    include: { items: { include: { item: true } }, shop: true },
                 })
+                if (ret.status === 'FINISHED')
+                    await this.updateItemsSale(ret, tx)
+                return ret
             } else if (currentUser.role === 'ADMIN') {
-                return await tx.order.update({
+                const ret = await tx.order.update({
                     where: { id },
                     data: {
                         status: toOrderStatus(status),
                     },
-                    include: { items: true },
+                    include: { items: { include: { item: true } }, shop: true },
                 })
+                if (ret.status === 'FINISHED')
+                    await this.updateItemsSale(ret, tx)
+                return ret
             } else {
                 throw new ResponseError(403, 'Permission denied')
             }

@@ -1,9 +1,9 @@
-
 import dotenv from 'dotenv'
 import { Express } from 'express'
 import { container, asyncInitializeRoutine } from './app/container'
 import { Logger } from 'pino'
 import { validateEnv } from './app/env'
+import './app/schedule'
 
 dotenv.config()
 validateEnv()
