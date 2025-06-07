@@ -1,7 +1,7 @@
 WITH shop_with_distance AS (
     SELECT
         s.*,
-        ((point(s."addressLongitude", s."addressLatitude") <@> point($2, $1)) * 1609.344) / 1000 AS distance
+        ((point(s."addressLongitude", s."addressLatitude") <@> point($2, $1)) * 1.609344) AS distance
     FROM
         "Shop" AS s
 )

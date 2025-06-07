@@ -87,8 +87,6 @@ export default class RecommendedService {
             const date = new Date();
             const currentTime = date.getUTCMinutes() + date.getUTCHours() * 60;
 
-            console.log(address, maxDistance, filterKeywords, categories, minRating, currentTime, sorting, pageLimit, pageSkip)
-
             const shops = await this.prisma.$queryRawTyped(getShops(
                 address.latitude,
                 address.longitude,
@@ -104,8 +102,6 @@ export default class RecommendedService {
 
             return await Promise.all(
                 shops.map(async (s) => {
-                    console.log(s)
-
                     const topItems = await this.prisma.item.findMany({
                         where: { shopId: s.id },
                         orderBy: { sale: 'desc' },

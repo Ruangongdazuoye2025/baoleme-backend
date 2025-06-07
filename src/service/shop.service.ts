@@ -4,7 +4,6 @@ import OSSService from "./oss.service";
 import { CreateShop, UpdateShopProfile } from "../schema/shop.schema";
 import { ResponseError } from "../util/errors";
 import sharp from "sharp";
-import { Console } from "console";
 
 @classInjection
 export default class ShopService {
@@ -21,7 +20,6 @@ export default class ShopService {
             if (!currentUser || currentUser.role !== 'ADMIN') {
                 throw new ResponseError(403, 'Permission denied')
             }
-            console.log(pageSkip, pageLimit)
             return await tx.shop.findMany({
                 include: { categories: true },
                 where: {

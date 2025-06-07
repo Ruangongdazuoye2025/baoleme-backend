@@ -6,7 +6,7 @@ WITH item_with_distance AS (
         i.*,
         s."addressLatitude" AS shop_latitude,
         s."addressLongitude" AS shop_longitude,
-        ((point(s."addressLongitude", s."addressLatitude") <@> point($2, $1)) * 1609.344) AS distance,
+        ((point(s."addressLongitude", s."addressLatitude") <@> point($2, $1)) * 1.609344) AS distance,
         s."verified" AS shop_verified,
         s."opened" AS shop_opened,
         s."openTimeStart" AS shop_open_time_start,
@@ -49,7 +49,7 @@ WHERE
 ORDER BY
     CASE WHEN $8 = 'r' THEN iwd.rating END DESC,
     CASE WHEN $8 = 't' THEN iwd.distance END ASC,
-    CASE WHEN $8 = 'c' THEN iwd.rating * EXP(-0.06 * iwd.distance / 1000) END DESC,
+    CASE WHEN $8 = 'c' THEN iwd.rating * EXP(-0.06 * iwd.distance) END DESC,
     CASE WHEN $8 = 's' THEN iwd.sale END DESC,
     iwd.id
 LIMIT $9 OFFSET $10;
