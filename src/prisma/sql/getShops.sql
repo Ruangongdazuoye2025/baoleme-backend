@@ -1,7 +1,7 @@
 WITH shop_with_distance AS (
     SELECT
         s.*,
-        ((point(s."addressLongitude", s."addressLatitude") <@> point($2, $1)) * 1609.344) AS distance
+        ((point(s."addressLongitude", s."addressLatitude") <@> point($2, $1)) * 1609.344) / 1000 AS distance
     FROM
         "Shop" AS s
 )
@@ -89,7 +89,7 @@ ORDER BY
         WHEN $8 = 't' THEN swd.distance
     END ASC,
     CASE
-        WHEN $8 = 'c' THEN swd.rating * EXP(-0.06 * swd.distance / 1000)
+        WHEN $8 = 'c' THEN swd.rating * EXP(-0.06 * swd.distance)
     END DESC
 LIMIT
     $9 OFFSET $10;
