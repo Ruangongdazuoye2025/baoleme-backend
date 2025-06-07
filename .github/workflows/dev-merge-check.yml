@@ -10,19 +10,15 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [22.16.0]
-
     steps:
     - uses: actions/checkout@v4
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-
-    - run: npm ci
-    - run: npm run build
-    - run: npm run test:unit
+    - name: Build the Docker image
+      run: |
+        docker build . --file Dockerfile --tag baoleme-backend:latest
+    - name: Run Docker compose
+      run: |
+        docker compose -f scripts/ci-compose.yml up -d --wait
+    - name: Run tests
+      run: |
+        docker container exec baoleme-backend npm run test:unit
