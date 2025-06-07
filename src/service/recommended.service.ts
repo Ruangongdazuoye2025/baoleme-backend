@@ -3,7 +3,9 @@ import { classInjection, injected } from "../util/injection-decorators";
 import OSSService from "./oss.service";
 import { ResponseError } from "../util/errors";
 import ShopService from "./shop.service";
-import { getShops } from "@prisma/client/sql";
+import { getShops, getItems, getOrders } from "@prisma/client/sql";
+import OrderService from "./order.service";
+import ItemService from "./item.service";
 
 @classInjection
 export default class RecommendedService {
@@ -17,29 +19,12 @@ export default class RecommendedService {
     @injected
     private shopService!: ShopService
 
-    async itemDataToRecommendedItemInfo(
-        item: Prisma.ItemGetPayload<{ include: { categories: true } }>
-    ) {
-        const [coverOrigin, coverThumbnail] = await Promise.all([
-            this.ossService.getObjectUrl(`items/${item.id}/cover.webp`),
-            this.ossService.getObjectUrl(`items/${item.id}/cover-thumbnail.webp`),
-        ])
-        return {
-            id: item.id,
-            shopId: item.shopId,
-            createdAt: item.createdAt,
-            name: item.name,
-            description: item.description,
-            available: item.available,
-            stockout: item.stockout,
-            price: item.price,
-            priceWithoutPromotion: item.priceWithoutPromotion,
-            categories: item.categories.map(c => c.id),
-            cover: { origin: coverOrigin, thumbnail: coverThumbnail },
-            rating: item.rating,
-            sale: item.sale
-        }
-    }
+    @injected
+    private itemService!: ItemService
+
+    @injected
+    private orderService!: OrderService
+
 
     async shopDataToRecommendedShopInfo(
         shop: Prisma.ShopGetPayload<{ include: { categories: true } }> & { distance: number },
@@ -49,7 +34,7 @@ export default class RecommendedService {
             ...this.shopService.shopDataToFullShopInfo(shop),
             time: shop.distance * 13,
             distance: shop.distance,
-            recommends: recommends.map(i => this.itemDataToRecommendedItemInfo(i))
+            recommends: recommends.map(i => this.itemService.itemDataToFullItemInfo(i))
         }
     }
 
@@ -97,19 +82,14 @@ export default class RecommendedService {
                 throw new ResponseError(404, 'Address not found');
             }
 
-            const cLatitude = 111;
-            const cLongitude = 111 * Math.cos((address.latitude * Math.PI) / 180);
-
             minRating ??= 0
 
             const date = new Date();
-            const currentTime = date.getMinutes() + date.getHours() * 60;
+            const currentTime = date.getUTCMinutes() + date.getUTCHours() * 60;
 
             const shops = await this.prisma.$queryRawTyped(getShops(
                 address.latitude,
-                cLatitude,
                 address.longitude,
-                cLongitude,
                 maxDistance,
                 filterKeywords,
                 categories,
@@ -142,11 +122,107 @@ export default class RecommendedService {
         })
     }
 
-    async getRecommendedItems(userId: string) {
-        //TODO
+    async getRecommendedItems(
+        currentUserId: string,
+        pageSkip: number,
+        pageLimit: number,
+        filterKeywords: string[],
+        sorting: string,
+        categories?: string[],
+        maxDistance?: number,
+        minRating?: number,
+        maxTime?: number,
+        addressId?: string,
+        minPrice?: number,
+        maxPrice?: number
+    ) {
+        return await this.prisma.$transaction(async tx => {
+            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } });
+            if (!currentUser) {
+                throw new ResponseError(403, 'Permission denied');
+            }
+            if (categories) {
+                const matchedCategories = await tx.itemCategory.findMany({
+                    where: { id: { in: categories } }
+                });
+                if (categories.length != matchedCategories.length) {
+                    throw new ResponseError(404, 'Categories not found');
+                }
+            }
+            categories ??= [];
+            let maxDistanceFinal = maxDistance;
+            if (maxTime) {
+                const distanceByTime = maxTime / 13;
+                maxDistanceFinal = maxDistance ? Math.min(maxDistance, distanceByTime) : distanceByTime;
+            }
+            maxDistanceFinal ??= 50;
+            const address = await tx.address.findUnique({ where: { id: addressId } });
+            if (!address) {
+                throw new ResponseError(404, 'Address not found');
+            }
+            minRating ??= 0;
+            const date = new Date();
+            const currentTime = date.getUTCMinutes() + date.getUTCHours() * 60;
+            const items = await this.prisma.$queryRawTyped(getItems(
+                address.latitude,
+                address.longitude,
+                maxDistanceFinal,
+                filterKeywords,
+                categories,
+                minRating,
+                currentTime,
+                sorting,
+                pageLimit,
+                pageSkip,
+                minPrice ?? null,
+                maxPrice ?? null
+            ));
+            return await Promise.all(
+                items.map(async (item: any) => {
+                    const fullItem = await tx.item.findUnique({
+                        where: { id: item.id },
+                        include: { categories: true }
+                    });
+                    return this.itemService.itemDataToFullItemInfo(fullItem!);
+                })
+            );
+        });
     }
 
-    async getRecommendedOrders(userId: string) {
-        //TODO
+    async getRecommendedOrders(
+        userId: string,
+        latitude: number,
+        longitude: number,
+        pageSkip: number,
+        pageLimit: number,
+        maxDistance?: number, // d
+        maxTime?: number,     // t (暂未实现时间过滤)
+        minIncome?: number    // m
+    ) {
+        return await this.prisma.$transaction(async tx => {
+            const currentUser = await tx.user.findUnique({ where: { id: userId } })
+            if (!currentUser) throw new ResponseError(403, 'Permission denied')
+
+            // TypedSQL 查询推荐订单，仿照 getItems/getShops
+            const orders = await tx.$queryRawTyped(getOrders(
+                latitude,
+                longitude,
+                maxDistance ?? null,
+                minIncome ?? null,
+                pageLimit,
+                pageSkip
+            ));
+
+            // 格式化响应结构
+            return await Promise.all(
+                orders.map(async ({id}) => {
+                    const order = await tx.order.findUnique({
+                        where: { id },
+                        include: { items: true }
+                    });
+                    return this.orderService.orderDataToOrderInfo(order!);
+                })
+            );
+        })
     }
 }

@@ -1,9 +1,7 @@
 WITH shop_with_distance AS (
     SELECT
         s.*,
-        sqrt(
-            ((s."addressLatitude" - $1) * $2) ^ 2 + ((s."addressLongitude" - $3) * $4) ^ 2
-        ) AS distance
+        ((point(s."addressLongitude", s."addressLatitude") <@> point($2, $1)) * 1609.344) AS distance
     FROM
         "Shop" AS s
 )
@@ -34,20 +32,26 @@ FROM
     shop_with_distance AS swd
 WHERE
     (
-        $5::float8 IS NULL
-        OR swd.distance <= $5
+        $3::float8 IS NULL
+        OR swd.distance <= $3
     )
     AND (
         swd.distance <= swd."maximumDistance"
     )
     AND (
-        $6::text[] Is NULL
-        OR cardinality($6) = 0
-        OR swd.name ILIKE ANY($6)
+        swd."verified" = true
     )
     AND (
-        $7::uuid[] IS NULL
-        OR cardinality($7) = 0
+        swd."opened" = true
+    )
+    AND (
+        $4::text[] Is NULL
+        OR cardinality($4) = 0
+        OR swd.name ILIKE ANY($4)
+    )
+    AND (
+        $5::uuid[] IS NULL
+        OR cardinality($5) = 0
         OR EXISTS (
             SELECT
                 1
@@ -55,37 +59,37 @@ WHERE
                 "_ShopToShopCategory" AS sj2
             WHERE
                 sj2."A" = swd.id
-                AND sj2."B" = ANY($7)
+                AND sj2."B" = ANY($5)
         )
     )
     AND (
-        $8::int IS NULL
-        OR swd.rating >= $8
+        $6::int IS NULL
+        OR swd.rating >= $6
     )
     AND (
-        $9::int IS NULL
+        $7::int IS NULL
         OR (
             swd."openTimeStart" <= swd."openTimeEnd"
-            AND $9 BETWEEN swd."openTimeStart"
+            AND $7 BETWEEN swd."openTimeStart"
             AND swd."openTimeEnd"
         )
         OR (
             swd."openTimeStart" > swd."openTimeEnd"
             AND (
-                $9 >= swd."openTimeStart"
-                OR $9 <= swd."openTimeEnd"
+                $7 >= swd."openTimeStart"
+                OR $7 <= swd."openTimeEnd"
             )
         )
     )
 ORDER BY
     CASE
-        WHEN $10 = 'r' THEN swd.rating
+        WHEN $8 = 'r' THEN swd.rating
     END DESC,
     CASE
-        WHEN $10 = 't' THEN swd.distance
+        WHEN $8 = 't' THEN swd.distance
     END ASC,
     CASE
-        WHEN $10 = 'c' THEN swd.rating * EXP(-0.06 * swd.distance)
+        WHEN $8 = 'c' THEN swd.rating * EXP(-0.06 * swd.distance / 1000)
     END DESC
 LIMIT
-    $11 OFFSET $12;
+    $9 OFFSET $10;

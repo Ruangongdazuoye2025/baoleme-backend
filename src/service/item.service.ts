@@ -227,7 +227,7 @@ export default class ItemService {
     }
     readonly ossContentType = 'image/webp'
 
-    async itemDataToFullItemInfo(item: Prisma.ItemGetPayload<{ include: { categories: true, shop: true } }>) {
+    async itemDataToFullItemInfo(item: Prisma.ItemGetPayload<{ include: { categories: true } }>) {
         return {
             id: item.id,
             shopId: item.shopId,
@@ -237,7 +237,7 @@ export default class ItemService {
         }
     }
 
-    itemDataToItemProfile(item: Prisma.ItemGetPayload<{ include: { categories: true, shop: true } }>) {
+    itemDataToItemProfile(item: Prisma.ItemGetPayload<{ include: { categories: true } }>) {
         return {
             name: item.name,
             description: item.description,
