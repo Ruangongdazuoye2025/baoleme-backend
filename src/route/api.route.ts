@@ -9,14 +9,22 @@ class APIRoute {
         @injected('helloController') helloController: Router,
         @injected('authController') authController: Router,
         @injected('userController') userController: Router,
+        @injected('addressController') addressController: Router,
         @injected('shopController') shopController: Router,
         @injected('shopCategoryController') shopCategoryController: Router,
         @injected('itemCategoryController') itemCategoryController: Router,
         @injected('recommendedController') recommendedController: Router,
+        @injected('itemController') itemController: Router,
+        @injected('historyController') historyController: Router,
+        @injected('orderController') orderController: Router,
     ) {
         const router = Router()
 
         router.use(express.json())
+        router.use('/', helloController)
+        router.use('/', authController)
+        router.use('/', userController)
+        router.use('/', addressController)
         router.use(helloController)
         router.use(authController)
         router.use(userController)
@@ -24,6 +32,9 @@ class APIRoute {
         router.use(shopCategoryController)
         router.use(itemCategoryController)
         router.use(recommendedController)
+        router.use(itemController)
+        router.use(historyController)
+        router.use(orderController)
         router.use(errorHandler)
 
         return router

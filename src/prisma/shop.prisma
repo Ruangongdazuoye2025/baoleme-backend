@@ -1,35 +1,36 @@
 model Shop {
-    id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    owner               User            @relation(fields: [ownerId], references: [id])
-    ownerId             String          @db.Uuid
-    name                String
-    description         String
-    categories          ShopCategory[]
-    
-    addressLatitude     Float
-    addressLongitude    Float
-    addressProvince     String
-    addressCity         String
-    addressDistrict     String
-    addressTown         String
-    addressAddress      String
-    addressName         String
-    addressTel          String
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner       User           @relation(fields: [ownerId], references: [id])
+  ownerId     String         @db.Uuid
+  name        String
+  description String
+  categories  ShopCategory[]
 
-    verified            Boolean         @default(false)
-    opened              Boolean         @default(false)
-    openTimeStart       Int
-    openTimeEnd         Int
-    deliveryThreshold   Int
-    deliveryPrice       Int
-    maximumDistance     Float
-    rating              Int             @default(0)
-    sale                Int             @default(0)
-    averagePrice        Int             @default(0)
-    createdAt           DateTime        @default(now())
-    updatedAt           DateTime        @updatedAt
+  addressLatitude  Float
+  addressLongitude Float
+  addressProvince  String
+  addressCity      String
+  addressDistrict  String
+  addressAddress   String
+  addressName      String
+  addressTel       String
 
-    itemCategories      ItemCategory[]
-    orders              Order[]
-    items               Item[]
+  verified          Boolean        @default(false)
+  opened            Boolean        @default(false)
+  openTimeStart     Int
+  openTimeEnd       Int
+  deliveryThreshold Int
+  deliveryPrice     Int
+  maximumDistance   Float
+  rating            Int            @default(0)
+  sale              Int            @default(0)
+  averagePrice      Int            @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  items             Item[]
+  itemCategories    ItemCategory[]
+  orders            Order[]
+  
+  shopHistory         ShopHistory[]
+  shopFavourite       ShopFavourite[]
 }
