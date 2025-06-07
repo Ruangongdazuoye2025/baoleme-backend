@@ -5,6 +5,7 @@ import { classInjection, injected } from '../util/injection-decorators'
 import TokenService from './token.service'
 import MailService from './mail.service'
 import passport from 'passport'
+import * as uuid from 'uuid'
 
 const SALT_ROUNDS = 10
 
@@ -51,6 +52,10 @@ export default class AuthService {
             const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
             const user = await tx.user.create({
                 data: { email, password: hashedPassword }
+            })
+            await tx.user.update({
+                where: { id: user.id },
+                data: { name: '用户 ' + btoa(String.fromCharCode(...uuid.parse(user.id))).slice(0, 8)}
             })
             const token = this.tokenService.generateVerifyToken(user.id)
             await this.mailService.sendVerifyRegisterEmail(email, token)

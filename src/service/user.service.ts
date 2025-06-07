@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import OSSService from './oss.service'
 import { classInjection, injected } from '../util/injection-decorators'
 import { UpdateUserProfile } from '../schema/user.schema'
+import * as uuid from 'uuid'
 
 @classInjection
 export default class UserService {
@@ -42,6 +43,9 @@ export default class UserService {
             }
             if (currentUser.role !== UserRole.ADMIN && role === 'admin') {
                 throw new ResponseError(403, 'Permission denied')
+            }
+            if (typeof(name) === 'string' && name.length === 0) {
+                name = '用户 ' + btoa(String.fromCharCode(...uuid.parse(id))).slice(0, 8)
             }
             return await tx.user.update({
                 where: { id },
