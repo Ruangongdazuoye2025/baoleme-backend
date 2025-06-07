@@ -12,7 +12,17 @@ export function validateBody(schema: Schema) {
 }
 
 export function validateQuery(schema: Schema) {
-    return validator.query(schema)
+    return (req: Request, res: Response, next: NextFunction) => {
+        const ret = schema.validate(req.query)
+        if (ret.error) {
+            next(ret)
+        } else {
+            const url = new URL(req.url, `http://localhost`)
+            url.search = new URLSearchParams(ret.value as Record<string, string>).toString()
+            req.url = url.pathname + (url.search ? `?${url.search}` : '')
+            next()
+        }
+    }
 }
 
 export function validateParams(schema: Schema) {

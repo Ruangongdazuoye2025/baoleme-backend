@@ -70,6 +70,10 @@ export default class AddressService {
                 throw new ResponseError(403, `一个用户最多只能拥有 ${MAX_ADDRESSES_PER_USER} 个收货地址`);
             }
 
+            if (currentAddresses.length === 0) {
+                apiAddressData.isDefault = true; // If it's the first address, set as default
+            }
+
             if (apiAddressData.isDefault) {
                 await tx.address.updateMany({
                     where: { userId: userId, isDefault: true },
