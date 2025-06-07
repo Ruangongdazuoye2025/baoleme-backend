@@ -28,8 +28,11 @@ describe('review service', () => {
         mockPrisma.$transaction.mockImplementation(async (cb: any) => {
             const tx = mockDeep<PrismaClient>()
             tx.user.findUnique.mockResolvedValue({ id: 'u1' } as any)
-            tx.order.findUnique.mockResolvedValue({ id: 'o1', customerId: 'u1', status: 'FINISHED', shop: {}, review: null } as any)
+            tx.order.findUnique.mockResolvedValue({ id: 'o1', customerId: 'u1', status: 'FINISHED', shop: { id: 'shop1' }, items: [], review: null } as any)
             tx.review.create.mockResolvedValue({ id: 'r1', userId: 'u1', orderId: 'o1', rating: 5, content: 'good', user: { id: 'u1' } } as any)
+            tx.review.aggregate.mockResolvedValue({ _avg: { rating: 5 }, _count: {}, _sum: {}, _min: {}, _max: {} })
+            tx.item.update.mockResolvedValue({ id: 'item1', rating: 5, createdAt: new Date(), name: '', shopId: '', description: '', sale: 0, price: 0, available: true, stockout: false, priceWithoutPromotion: 0 })
+            tx.shop.update.mockResolvedValue({ id: 'shop1', rating: 5, createdAt: new Date(), updatedAt: new Date(), name: '', ownerId: '', description: '', addressLatitude: 0, addressLongitude: 0, addressProvince: '', addressCity: '', addressDistrict: '', addressAddress: '', addressName: '', addressTel: '', verified: false, opened: false, openTimeStart: 0, openTimeEnd: 0, deliveryThreshold: 0, deliveryPrice: 0, maximumDistance: 0, sale: 0, averagePrice: 0 })
             return cb(tx)
         })
         const result = await reviewService.createReview('u1', { order: 'o1', rating: 5, content: 'good' })
@@ -106,8 +109,11 @@ describe('review service', () => {
         mockPrisma.$transaction.mockImplementation(async (cb: any) => {
             const tx = mockDeep<PrismaClient>()
             tx.user.findUnique.mockResolvedValue({ id: 'u1', role: 'USER' } as any)
-            tx.review.findUnique.mockResolvedValue({ id: 'r1', userId: 'u1' } as any)
+            tx.review.findUnique.mockResolvedValue({ id: 'r1', userId: 'u1', order: { items: [], shop: { id: 'shop1' } } } as any)
             tx.review.update.mockResolvedValue({ id: 'r1', userId: 'u1', rating: 4, content: 'updated' } as any)
+            tx.review.aggregate.mockResolvedValue({ _avg: { rating: 5 }, _count: {}, _sum: {}, _min: {}, _max: {} })
+            tx.item.update.mockResolvedValue({ id: 'item1', rating: 5, createdAt: new Date(), name: '', shopId: '', description: '', sale: 0, price: 0, available: true, stockout: false, priceWithoutPromotion: 0 })
+            tx.shop.update.mockResolvedValue({ id: 'shop1', rating: 5, createdAt: new Date(), updatedAt: new Date(), name: '', ownerId: '', description: '', addressLatitude: 0, addressLongitude: 0, addressProvince: '', addressCity: '', addressDistrict: '', addressAddress: '', addressName: '', addressTel: '', verified: false, opened: false, openTimeStart: 0, openTimeEnd: 0, deliveryThreshold: 0, deliveryPrice: 0, maximumDistance: 0, sale: 0, averagePrice: 0 })
             return cb(tx)
         })
         const result = await reviewService.updateReview('u1', 'r1', { rating: 4, content: 'updated' })
@@ -128,12 +134,22 @@ describe('review service', () => {
         mockPrisma.$transaction.mockImplementation(async (cb: any) => {
             const tx = mockDeep<PrismaClient>()
             tx.user.findUnique.mockResolvedValue({ id: 'admin', role: 'ADMIN' } as any)
-            tx.review.findUnique.mockResolvedValue({ id: 'r1', userId: 'u1' } as any)
+            tx.review.findUnique.mockResolvedValue({ 
+                id: 'r1', 
+                userId: 'u1',
+                order: {
+                    items: [],
+                    shop: { id: 'shop1' }
+                }
+            } as any)
             tx.review.delete.mockResolvedValue({ id: 'r1', userId: 'u1' } as any)
+            tx.review.aggregate.mockResolvedValue({ _avg: { rating: 5 }, _count: {}, _sum: {}, _min: {}, _max: {} })
+            tx.item.update.mockResolvedValue({ id: 'item1', rating: 5, createdAt: new Date(), name: '', shopId: '', description: '', sale: 0, price: 0, available: true, stockout: false, priceWithoutPromotion: 0 })
+            tx.shop.update.mockResolvedValue({ id: 'shop1', rating: 5, createdAt: new Date(), updatedAt: new Date(), name: '', ownerId: '', description: '', addressLatitude: 0, addressLongitude: 0, addressProvince: '', addressCity: '', addressDistrict: '', addressAddress: '', addressName: '', addressTel: '', verified: false, opened: false, openTimeStart: 0, openTimeEnd: 0, deliveryThreshold: 0, deliveryPrice: 0, maximumDistance: 0, sale: 0, averagePrice: 0 })
             return cb(tx)
         })
         const result = await reviewService.deleteReview('admin', 'r1')
-        expect(result).toEqual({ id: 'r1', userId: 'u1' })
+        expect(result).toBeUndefined()
     })
 
     test('should throw if review not found for delete', async () => {
