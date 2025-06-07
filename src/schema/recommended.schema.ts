@@ -5,7 +5,7 @@ export const getRecommendedShopsQuery = Joi.object({
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     q: Joi.string().allow('').default('').optional(),
     c: Joi.alternatives().try(
-        Joi.string(),
+        Joi.string().allow('').default(''),
         Joi.array().items(Joi.string())
     ).optional(),
     d: Joi.number().min(0).optional(),

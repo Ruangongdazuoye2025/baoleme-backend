@@ -77,7 +77,7 @@ export default class RecommendedService {
             }
             maxDistance ??= 50;
 
-            const address = await tx.address.findUnique({ where: { id: addressId } });
+            const address = addressId ? await tx.address.findUnique({ where: { id: addressId } }) : await tx.address.findFirst({ where: { isDefault: true } });
             if (!address) {
                 throw new ResponseError(404, 'Address not found');
             }
@@ -156,7 +156,7 @@ export default class RecommendedService {
                 maxDistanceFinal = maxDistance ? Math.min(maxDistance, distanceByTime) : distanceByTime;
             }
             maxDistanceFinal ??= 50;
-            const address = await tx.address.findUnique({ where: { id: addressId } });
+            const address = addressId ? await tx.address.findUnique({ where: { id: addressId } }) : await tx.address.findFirst({ where: { isDefault: true } });
             if (!address) {
                 throw new ResponseError(404, 'Address not found');
             }
