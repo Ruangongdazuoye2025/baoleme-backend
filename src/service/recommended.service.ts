@@ -31,10 +31,10 @@ export default class RecommendedService {
         recommends: Prisma.ItemGetPayload<{ include: { categories: true } }>[]
     ) {
         return {
-            ...this.shopService.shopDataToFullShopInfo(shop),
-            time: shop.distance * 13,
+            ...await this.shopService.shopDataToFullShopInfo(shop),
+            time: Math.round(shop.distance * 13),
             distance: shop.distance,
-            recommends: recommends.map(i => this.itemService.itemDataToFullItemInfo(i))
+            recommends: await Promise.all(recommends.map(i => this.itemService.itemDataToFullItemInfo(i)))
         }
     }
 
