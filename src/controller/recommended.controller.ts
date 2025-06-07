@@ -20,7 +20,6 @@ class RecommendedController {
             validateQuery(RecommendedSchema.getRecommendedShopsQuery),
             async (req, res) => {
                 const { p, pn, q, c, d, r, t, s, rc, a } =req.query as unknown as RecommendedSchema.GetRecommendedShopsQuery;
-                console.log(c)
                 const pageSkip = parseInt(p) * parseInt(pn)
                 const pageLimit = parseInt(pn)
                 const filterKeywords = q.split(' ').filter(s => s.length > 0)
