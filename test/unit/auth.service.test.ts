@@ -36,7 +36,7 @@ describe('auth service', () => {
     test('should register a user', async () => {
         const email = 'a@example.com'
         const password = '123456'
-        const id = 'user-id'
+        const id = '3d26c8b1-4c8e-4157-8c3a-3c829d922768'
         const token = 'verify-token'
         authService.register(email, password)
         expect(mockPrisma.$transaction).toHaveBeenCalled()
