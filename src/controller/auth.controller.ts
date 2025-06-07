@@ -59,7 +59,7 @@ class AuthController {
             validateBody(AuthSchema.forgotPassword),
             async (req, res) => {
                 const { email } = req.body as AuthSchema.ForgotPassword
-                authService.forgotPassword(email)
+                await authService.forgotPassword(email)
                 res.status(204).send()
             }
         )
@@ -69,7 +69,7 @@ class AuthController {
             validateBody(AuthSchema.verifyToken),
             async (req, res) => {
                 const { token } = req.body as AuthSchema.VerifyToken
-                authService.verifyRegister(token)
+                await authService.verifyRegister(token)
                 res.status(204).send()
             }
         )
