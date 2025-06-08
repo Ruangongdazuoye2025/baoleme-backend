@@ -335,6 +335,25 @@ export default class OrderService {
         })
     }
 
+
+    async updateOrderDelivery(currentUserId: string, id: string, longitude: number, latitude: number) {
+        return await this.prisma.$transaction(async tx => {
+            const order = await tx.order.findUnique({ where: { id }, include: { items: true } })
+            if (!order) throw new ResponseError(404, 'Order not found')
+            if (order.riderId !== currentUserId) throw new ResponseError(403, 'Permission denied')
+            if (order.status !== 'DELIVERING') throw new ResponseError(403, 'Order is not delivering')
+            const updated = await tx.order.update({
+                where: { id },
+                data: {
+                    deliveryLongitude: longitude,
+                    deliveryLatitude: latitude
+                },
+                include: { items: true }
+            })
+            return updated
+        })
+    }
+
     private async updateItemsSale(order: Prisma.OrderGetPayload<{ include: { items: { include: { item: true } }, shop: true } }>, tx: Prisma.TransactionClient) {
         const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
         if (!order.shop)
