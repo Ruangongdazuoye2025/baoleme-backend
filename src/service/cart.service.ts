@@ -1,11 +1,15 @@
 import { PrismaClient } from '@prisma/client'
 import { classInjection, injected } from '../util/injection-decorators'
 import { ResponseError } from '../util/errors'
+import ItemService from './item.service'
 
 @classInjection
 export default class CartService {
     @injected
     private prisma!: PrismaClient
+
+    @injected
+    private itemService!: ItemService
 
     // 获取购物车商品数量
     async getCartItemQuantity(userId: string, shopId: string, itemId: string) {
@@ -41,16 +45,20 @@ export default class CartService {
 
     // 获取购物车信息
     async getCartInfo(userId: string, shopId: string) {
+        const shop = await this.prisma.shop.findUnique({ where: { id: shopId } })
+        if (!shop)
+            throw new ResponseError(404, 'Shop not found')
         const items = await this.prisma.cartItem.findMany({
             where: { customerId: userId, item: { shopId } },
             include: { item: true }
         })
         const total = items.reduce((sum, i) => sum + i.quantity * i.item.price, 0)
         const totalWithoutPromotion = items.reduce((sum, i) => sum + i.quantity * i.item.priceWithoutPromotion, 0)
+        const settlable = items.length > 0 && items.every(i => i.item.available && !i.item.stockout) && total + shop.deliveryPrice >= shop.deliveryThreshold
         return {
             total,
             totalWithoutPromotion,
-            settlable: items.length > 0
+            settlable: settlable
         }
     }
 
@@ -58,10 +66,13 @@ export default class CartService {
     async getCartItems(userId: string, shopId: string) {
         const items = await this.prisma.cartItem.findMany({
             where: { customerId: userId, item: { shopId } },
-            include: { item: true },
+            include: { item: { include: { categories: true } } },
             orderBy: { createdAt: 'asc' }
         })
-        return items.map(i => ({ item: i.item, quantity: i.quantity }))
+        return await Promise.all(items.map(async i => ({
+            item: await this.itemService.itemDataToFullItemInfo(i.item),
+            quantity: i.quantity 
+        })))
     }
 
     // 清空购物车
