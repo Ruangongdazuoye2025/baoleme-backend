@@ -4,6 +4,7 @@ import { PrismaClient, CartItem, Item } from '@prisma/client'
 import * as awilix from 'awilix'
 import CartService from '../../src/service/cart.service'
 import { ResponseError } from '../../src/util/errors'
+import ItemService from '../../src/service/item.service'
 
 describe('cart service', () => {
     const mockPrisma = mockDeep<PrismaClient>()
@@ -13,12 +14,23 @@ describe('cart service', () => {
     })
     container.register({
         prisma: awilix.asValue(mockPrisma),
+        ossService: awilix.asValue({
+            getObjectUrl: jest.fn(() => Promise.resolve('mock-url')),
+            putObject: jest.fn(() => Promise.resolve('mock-url')),
+            removeObject: jest.fn(() => Promise.resolve()),
+        } as any),
         cartService: awilix.asClass(CartService),
+        itemService: awilix.asClass(ItemService)
     })
     let cartService = container.resolve<CartService>('cartService')
 
     beforeEach(() => {
         jest.clearAllMocks()
+        mockPrisma.shop.findUnique.mockResolvedValue({
+            id: 's1',
+            deliveryPrice: 0,
+            deliveryThreshold: 0
+        } as any)
     })
 
     test('should get cart item quantity', async () => {
@@ -47,8 +59,8 @@ describe('cart service', () => {
 
     test('should get cart info', async () => {
         mockPrisma.cartItem.findMany.mockResolvedValue([
-            { quantity: 2, item: { price: 10, priceWithoutPromotion: 12, shopId: 's1' } } as any,
-            { quantity: 1, item: { price: 20, priceWithoutPromotion: 22, shopId: 's1' } } as any
+            { quantity: 2, item: { price: 10, priceWithoutPromotion: 12, shopId: 's1', available: true, stockout: false, categories: [] } } as any,
+            { quantity: 1, item: { price: 20, priceWithoutPromotion: 22, shopId: 's1', available: true, stockout: false, categories: [] } } as any
         ])
         const result = await cartService.getCartInfo('u1', 's1')
         expect(result.total).toBe(40)
@@ -58,7 +70,7 @@ describe('cart service', () => {
 
     test('should get cart items', async () => {
         mockPrisma.cartItem.findMany.mockResolvedValue([
-            { quantity: 2, item: { id: 'i1', shopId: 's1' } } as any
+            { quantity: 2, item: { id: 'i1', shopId: 's1', categories: [], available: true, stockout: false } } as any
         ])
         const result = await cartService.getCartItems('u1', 's1')
         expect(result[0].quantity).toBe(2)

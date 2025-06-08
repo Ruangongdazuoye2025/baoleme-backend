@@ -225,7 +225,7 @@ export default class OrderService {
                 quantity: item.quantity,
                 price: item.item.price * item.quantity,
             }))
-            const total = orderItems.reduce((sum, item) => sum + item.price, 0)
+            const total = orderItems.reduce((sum, item) => sum + item.price, 0) + shop.deliveryPrice
             if (total < shop.deliveryThreshold) {
                 throw new ResponseError(403, 'Order total is below the minimum value')
             }
