@@ -20,28 +20,28 @@ export default class HistoryService {
 
     async itemHistoryDataToFullItemHistoryInfo(itemHistory: Prisma.ItemHistoryGetPayload<{ include: { item: { include: { categories: true; shop: true } } } }>) {
         return {
-            item: this.itemService.itemDataToFullItemInfo(itemHistory.item),
+            item: await this.itemService.itemDataToFullItemInfo(itemHistory.item),
             createdAt: itemHistory.createdAt
         }
     }
 
     async shopHistoryDataToFullShopHistoryInfo(shopHistory: Prisma.ShopHistoryGetPayload<{ include: { shop: { include: { categories: true; owner: true } } } }>) {
         return {
-            shop: this.shopService.shopDataToFullShopInfo(shopHistory.shop),
+            shop: await this.shopService.shopDataToFullShopInfo(shopHistory.shop),
             createdAt: shopHistory.createdAt
         }
     }
 
     async itemFavouriteDataToFullItemFavouriteInfo(itemFavourite: Prisma.ItemFavouriteGetPayload<{ include: { item: { include: { categories: true; shop: true } } } }>) {
         return {
-            item: this.itemService.itemDataToFullItemInfo(itemFavourite.item),
+            item: await this.itemService.itemDataToFullItemInfo(itemFavourite.item),
             createdAt: itemFavourite.createdAt
         }
     }
 
     async shopFavouriteDataToFullShopFavouriteInfo(shopFavourite: Prisma.ShopFavouriteGetPayload<{ include: { shop: { include: { categories: true; owner: true } } } }>) {
         return {
-            shop: this.shopService.shopDataToFullShopInfo(shopFavourite.shop),
+            shop: await this.shopService.shopDataToFullShopInfo(shopFavourite.shop),
             createdAt: shopFavourite.createdAt
         }
     }
@@ -279,6 +279,28 @@ export default class HistoryService {
                     }
                 },
             })
+        })
+    }
+
+    async getShopFavouriteById(currentUserId: string, shopId: string) {
+        return await this.prisma.$transaction(async tx => {
+            const favourite = await tx.shopFavourite.findUnique({
+                where: { userId_shopId: { userId: currentUserId, shopId } },
+                include: { shop: { include: { categories: true, owner: true } } }
+            })
+            if (!favourite) throw new ResponseError(404, 'Shop favourite not found')
+            return favourite
+        })
+    }
+
+    async getItemFavouriteById(currentUserId: string, itemId: string) {
+        return await this.prisma.$transaction(async tx => {
+            const favourite = await tx.itemFavourite.findUnique({
+                where: { userId_itemId: { userId: currentUserId, itemId } },
+                include: { item: { include: { categories: true, shop: true } } }
+            })
+            if (!favourite) throw new ResponseError(404, 'Item favourite not found')
+            return favourite
         })
     }
 

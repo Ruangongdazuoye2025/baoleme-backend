@@ -22,7 +22,7 @@ class HistoryController {
                 const pageSkip = parseInt(p) * parseInt(pn)
                 const pageLimit = parseInt(pn)
                 const shopHistorys = await historyService.getShopHistory(req.user!.id, pageSkip, pageLimit)
-                res.status(200).json(await Promise.all(shopHistorys.map(async shopHistory => historyService.shopHistoryDataToFullShopHistoryInfo(shopHistory))))
+                res.status(200).json(await Promise.all(shopHistorys.map(async shopHistory => await historyService.shopHistoryDataToFullShopHistoryInfo(shopHistory))))
             }
         )
 
@@ -46,7 +46,7 @@ class HistoryController {
                 const pageSkip = parseInt(p) * parseInt(pn)
                 const pageLimit = parseInt(pn)
                 const itemHistorys = await historyService.getItemHistory(req.user!.id, pageSkip, pageLimit)
-                res.status(200).json(await Promise.all(itemHistorys.map(async itemHistory => historyService.itemHistoryDataToFullItemHistoryInfo(itemHistory))))
+                res.status(200).json(await Promise.all(itemHistorys.map(async itemHistory => await historyService.itemHistoryDataToFullItemHistoryInfo(itemHistory))))
             }
         )
 
@@ -70,7 +70,7 @@ class HistoryController {
                 const pageSkip = parseInt(p) * parseInt(pn)
                 const pageLimit = parseInt(pn)
                 const shopFavourites = await historyService.getShopFavourite(req.user!.id, pageSkip, pageLimit)
-                res.status(200).json(await Promise.all(shopFavourites.map(async shopFavourite => historyService.shopFavouriteDataToFullShopFavouriteInfo(shopFavourite))))
+                res.status(200).json(await Promise.all(shopFavourites.map(async shopFavourite => await historyService.shopFavouriteDataToFullShopFavouriteInfo(shopFavourite))))
             }
         )
 
@@ -94,7 +94,7 @@ class HistoryController {
                 const pageSkip = parseInt(p) * parseInt(pn)
                 const pageLimit = parseInt(pn)
                 const itemFavourites = await historyService.getItemFavourite(req.user!.id, pageSkip, pageLimit)
-                res.status(200).json(await Promise.all(itemFavourites.map(async itemFavourite => historyService.itemFavouriteDataToFullItemFavouriteInfo(itemFavourite))))
+                res.status(200).json(await Promise.all(itemFavourites.map(async itemFavourite => await historyService.itemFavouriteDataToFullItemFavouriteInfo(itemFavourite))))
             }
         )
 
@@ -105,6 +105,28 @@ class HistoryController {
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
                 const itemFavourite = await historyService.createItemFavourite(req.user!.id, id)
+                res.status(200).json(await historyService.itemFavouriteDataToFullItemFavouriteInfo(itemFavourite))
+            }
+        )
+
+        router.get(
+            '/favorites/shops/:id',
+            authService.requireAuth(),
+            validateParams(HistorySchema.historyIdParams),
+            async (req, res) => {
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                const shopFavourite = await historyService.getShopFavouriteById(req.user!.id, id)
+                res.status(200).json(await historyService.shopFavouriteDataToFullShopFavouriteInfo(shopFavourite))
+            }
+        )
+
+        router.get(
+            '/favorites/items/:id',
+            authService.requireAuth(),
+            validateParams(HistorySchema.historyIdParams),
+            async (req, res) => {
+                const { id } = req.params as unknown as HistorySchema.HistoryIdParams
+                const itemFavourite = await historyService.getItemFavouriteById(req.user!.id, id)
                 res.status(200).json(await historyService.itemFavouriteDataToFullItemFavouriteInfo(itemFavourite))
             }
         )
