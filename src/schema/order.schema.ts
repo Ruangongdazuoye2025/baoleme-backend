@@ -1,7 +1,7 @@
 import Joi from 'joi'
 
 export const getOrdersQuery = Joi.object({
-    p: Joi.number().integer().min(1).default(1).optional(),
+    p: Joi.number().integer().min(0).default(0).optional(),
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 }).required()
@@ -13,7 +13,7 @@ export interface GetOrdersQuery {
 }
 
 export const getOrdersAsShopQuery = Joi.object({
-    p: Joi.number().integer().min(1).default(1).optional(),
+    p: Joi.number().integer().min(0).default(0).optional(),
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('preparing', 'prepared', 'delivering', 'finished').optional(),
 }).required()
@@ -58,4 +58,14 @@ export const shopIdParams = Joi.object({
 
 export interface ShopIdParams {
     shopId: string
+}
+
+export const updateOrderDelivery = Joi.object({
+    longitude: Joi.number().required(),
+    latitude: Joi.number().required(),
+}).required()
+
+export interface UpdateOrderDelivery {
+    longitude: number
+    latitude: number
 }

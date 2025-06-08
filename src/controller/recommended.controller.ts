@@ -97,13 +97,13 @@ class RecommendedController {
                 // 查询分页数据
                 const orders = await recommendedService.getRecommendedOrders(
                     req.user!.id,
-                    lat,
-                    lon,
+                    parseFloat(lat),
+                    parseFloat(lon),
                     pageSkip,
                     pageSize,
-                    d,
-                    t,
-                    m
+                    d !== undefined ? parseFloat(d) : undefined,
+                    t !== undefined ? parseInt(t) : undefined,
+                    m !== undefined ? parseFloat(m) : undefined
                 );
                 res.status(200).json(orders);
             }

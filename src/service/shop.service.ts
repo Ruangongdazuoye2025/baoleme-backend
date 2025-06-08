@@ -418,4 +418,119 @@ export default class ShopService {
         })
     }
 
+    /**
+     * 获取店铺统计信息（销量、收入）
+     * 使用数据库聚合与分组，避免拉取所有订单
+     */
+    async getShopStats(currentUserId: string, shopId: string, start: string, end: string) {
+        return await this.prisma.$transaction(async tx => {
+            const shop = await tx.shop.findUnique({ where: { id: shopId } })
+            if (!shop) throw new ResponseError(404, 'Shop not found')
+            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            if (!currentUser || (currentUser.role !== 'ADMIN' && shop.ownerId !== currentUserId)) {
+                throw new ResponseError(403, 'Permission denied')
+            }
+            const s = new Date(start)
+            const t = new Date(end)
+            // 生成日期列表
+            const dayMap = new Map<string, { sales: number, incomes: number }>()
+            for (let d = new Date(s); d <= t; d.setDate(d.getDate() + 1)) {
+                const key = d.toISOString().slice(0, 10)
+                dayMap.set(key, { sales: 0, incomes: 0 })
+            }
+            // 聚合每天的收入
+            const incomeAgg = await tx.order.groupBy({
+                by: ['finishedAt'],
+                where: {
+                    shopId,
+                    status: 'FINISHED',
+                    finishedAt: { gte: s, lte: t }
+                },
+                _sum: { total: true }
+            })
+            for (const row of incomeAgg) {
+                const day = row.finishedAt?.toISOString().slice(0, 10)
+                if (day && dayMap.has(day)) {
+                    dayMap.get(day)!.incomes += row._sum.total || 0
+                }
+            }
+            // 聚合每天的销量（通过 orderItem 关联 order 的 finishedAt）
+            const salesAgg = await tx.orderItem.findMany({
+                where: {
+                    order: {
+                        shopId,
+                        status: 'FINISHED',
+                        finishedAt: { gte: s, lte: t }
+                    }
+                },
+                select: {
+                    quantity: true,
+                    order: { select: { finishedAt: true } }
+                }
+            })
+            for (const row of salesAgg) {
+                const day = row.order.finishedAt?.toISOString().slice(0, 10)
+                if (day && dayMap.has(day)) {
+                    dayMap.get(day)!.sales += row.quantity
+                }
+            }
+            return {
+                sales: Array.from(dayMap.values(), v => v.sales),
+                incomes: Array.from(dayMap.values(), v => v.incomes)
+            }
+        })
+    }
+
+    /**
+     * 获取店铺热销商品
+     * 使用数据库聚合，避免拉取所有订单
+     */
+    async getShopTopItems(currentUserId: string, shopId: string, start: string, end: string, n?: number) {
+        return await this.prisma.$transaction(async tx => {
+            const shop = await tx.shop.findUnique({ where: { id: shopId } })
+            if (!shop) throw new ResponseError(404, 'Shop not found')
+            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            if (!currentUser || (currentUser.role !== 'ADMIN' && shop.ownerId !== currentUserId)) {
+                throw new ResponseError(403, 'Permission denied')
+            }
+            const s = new Date(start)
+            const t = new Date(end)
+            // 聚合商品销量和收入
+            const agg = await tx.orderItem.groupBy({
+                by: ['itemId'],
+                _sum: { quantity: true, price: true },
+                where: {
+                    order: {
+                        shopId,
+                        status: 'FINISHED',
+                        finishedAt: { gte: s, lte: t }
+                    },
+                    itemId: { not: null }
+                }
+            })
+            // 查询商品信息
+            const itemIds = agg.map(i => i.itemId!).filter(Boolean)
+            const items = await tx.item.findMany({ where: { id: { in: itemIds } } })
+            const itemInfoMap = new Map(items.map(i => [i.id, i]))
+            // 按销量和收入排序
+            const bySale = agg
+                .map(i => ({ ...itemInfoMap.get(i.itemId!), queriedSale: i._sum.quantity || 0 }))
+                .sort((a, b) => b.queriedSale - a.queriedSale)
+                .slice(0, n || 10)
+            const byIncome = agg
+                .map(i => ({ ...itemInfoMap.get(i.itemId!), queriedIncome: i._sum.price || 0 }))
+                .sort((a, b) => b.queriedIncome - a.queriedIncome)
+                .slice(0, n || 10)
+            // 总销售量和总收入
+            const totalSale = agg.reduce((sum, i) => sum + (i._sum.quantity || 0), 0)
+            const totalIncome = agg.reduce((sum, i) => sum + (i._sum.price || 0), 0)
+            return {
+                totalSale,
+                totalIncome,
+                bySale,
+                byIncome
+            }
+        })
+    }
+
 }
