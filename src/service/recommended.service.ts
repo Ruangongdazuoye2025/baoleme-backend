@@ -218,7 +218,7 @@ export default class RecommendedService {
                 orders.map(async ({id}) => {
                     const order = await tx.order.findUnique({
                         where: { id },
-                        include: { items: true }
+                        include: { items: { include: { item: true } } }
                     });
                     return this.orderService.orderDataToOrderInfo(order!);
                 })
