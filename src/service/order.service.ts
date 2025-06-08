@@ -21,7 +21,7 @@ export default class OrderService {
     @injected
     private ossService!: OSSService
 
-    async orderDataToOrderInfo(order: Prisma.OrderGetPayload<{ include: { items: true } }>) {
+    async orderDataToOrderInfo(order: Prisma.OrderGetPayload<{ include: { items: { include: { item: true } } } }>) {
         return {
             id: order.id,
             status: order.status.toLowerCase(),
@@ -37,7 +37,7 @@ export default class OrderService {
             items: await Promise.all(order.items.map(async item => ({
                 id: item.itemId,
                 name: item.name,
-                cover: await this.getOrderItemCoverLinks(item.id),
+                cover: await this.getOrderItemCoverLinks(item.item?.id ?? '0'),
                 quantity: item.quantity,
                 price: item.price,
             }))),
@@ -97,8 +97,8 @@ export default class OrderService {
 
     async getOrderItemCoverLinks(id: string) {
         const [origin, thumbnail] = await Promise.all([
-            this.ossService.getObjectUrl(`order-items/${id}/cover.webp`),
-            this.ossService.getObjectUrl(`order-items/${id}/cover-thumbnail.webp`)])
+            this.ossService.getObjectUrl(`items/${id}/cover.webp`),
+            this.ossService.getObjectUrl(`items/${id}/cover-thumbnail.webp`)])
         return { origin, thumbnail }
     }
 
@@ -115,7 +115,7 @@ export default class OrderService {
                 take: pageLimit,
                 where: { status: toOrderStatus(status) },
                 orderBy: { createdAt: 'desc' },
-                include: { items: true },
+                include: { items: { include: { item: true } } },
             })
         })
     }
@@ -133,7 +133,7 @@ export default class OrderService {
                 skip: pageSkip,
                 take: pageLimit,
                 orderBy: { createdAt: 'desc' },
-                include: { items: true },
+                include: { items: { include: { item: true } } },
             })
         })
     }
@@ -158,7 +158,7 @@ export default class OrderService {
                 skip: pageSkip,
                 take: pageLimit,
                 orderBy: { createdAt: 'desc' },
-                include: { items: true },
+                include: { items: { include: { item: true } } },
             })
         })
     }
@@ -176,7 +176,7 @@ export default class OrderService {
                 skip: pageSkip,
                 take: pageLimit,
                 orderBy: { createdAt: 'desc' },
-                include: { items: true },
+                include: { items: { include: { item: true } } },
             })
         })
     }
@@ -273,7 +273,7 @@ export default class OrderService {
                     customerName: address.recipientName,
                     customerTel: address.phoneNumber,
                 },
-                include: { items: true },
+                include: { items: { include: { item: true } } },
             })
         })
     }
@@ -288,7 +288,7 @@ export default class OrderService {
             }
             const order = await tx.order.findUnique({
                 where: { id },
-                include: { items: true, shop: true },
+                include: { items: { include: { item: true } }, shop: true },
             })
             if (!order) {
                 throw new ResponseError(404, 'Order not found')
@@ -330,7 +330,7 @@ export default class OrderService {
                     status: 'DELIVERING',
                     deliveredAt: new Date(),
                 },
-                include: { items: true },
+                include: { items: { include: { item: true } } },
             })
         })
     }
@@ -348,7 +348,7 @@ export default class OrderService {
                     deliveryLongitude: longitude,
                     deliveryLatitude: latitude
                 },
-                include: { items: true }
+                include: { items: { include: { item: true } } }
             })
             return updated
         })
@@ -378,16 +378,20 @@ export default class OrderService {
                 data: { sale: itemOrderSum },
             })
         }
-        const shopOrderSum = (await tx.order.aggregate({
-            _sum: { total: true },
+        const shopOrderSum = (await tx.orderItem.aggregate({
+            _sum: { quantity: true },
             where: {
-                shopId: order.shop.id,
-                status: 'FINISHED',
-                finishedAt: {
-                    gte: oneMonthAgo,
-                }
+                item: {
+                    shopId: order.shop.id,
+                },
+                order: {
+                    status: 'FINISHED',
+                    finishedAt: {
+                        gte: oneMonthAgo,
+                    }
+                },
             },
-        }))._sum.total || 0
+        }))._sum.quantity || 0
         await tx.shop.update({
             where: { id: order.shop.id },
             data: { sale: shopOrderSum },

@@ -27,7 +27,7 @@ class ReviewController {
         router.get(
             '/comments/by-order/:id',
             authService.requireAuth(),
-            validateQuery(ReviewSchema.orderIdParams),
+            validateParams(ReviewSchema.orderIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as ReviewSchema.OrderIdParams;
                 const review = await reviewService.getReviewByOrderId(req.user!.id, id);
