@@ -13,7 +13,9 @@ class APIRoute {
         @injected('shopController') shopController: Router,
         @injected('shopCategoryController') shopCategoryController: Router,
         @injected('itemCategoryController') itemCategoryController: Router,
-        @injected('itemController') itemController: Router
+        @injected('itemController') itemController: Router,
+        @injected('historyController') historyController: Router,
+        @injected('orderController') orderController: Router,
     ) {
         const router = Router()
 
@@ -29,6 +31,8 @@ class APIRoute {
         router.use(shopCategoryController)
         router.use(itemCategoryController)
         router.use(itemController)
+        router.use(historyController)
+        router.use(orderController)
         router.use(errorHandler)
 
         return router
