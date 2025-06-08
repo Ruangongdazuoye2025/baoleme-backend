@@ -1,11 +1,15 @@
 import { PrismaClient } from '@prisma/client'
 import { classInjection, injected } from '../util/injection-decorators'
 import { ResponseError } from '../util/errors'
+import ItemService from './item.service'
 
 @classInjection
 export default class CartService {
     @injected
     private prisma!: PrismaClient
+
+    @injected
+    private itemService!: ItemService
 
     // 获取购物车商品数量
     async getCartItemQuantity(userId: string, shopId: string, itemId: string) {
@@ -58,10 +62,13 @@ export default class CartService {
     async getCartItems(userId: string, shopId: string) {
         const items = await this.prisma.cartItem.findMany({
             where: { customerId: userId, item: { shopId } },
-            include: { item: true },
+            include: { item: { include: { categories: true } } },
             orderBy: { createdAt: 'asc' }
         })
-        return items.map(i => ({ item: i.item, quantity: i.quantity }))
+        return await Promise.all(items.map(async i => ({
+            item: await this.itemService.itemDataToFullItemInfo(i.item),
+            quantity: i.quantity 
+        })))
     }
 
     // 清空购物车
