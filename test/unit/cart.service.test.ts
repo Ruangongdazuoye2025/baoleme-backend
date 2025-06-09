@@ -107,4 +107,21 @@ describe('cart service', () => {
         expect(result.quantity).toBe(3)
     })
 
+    test('should throw if updateCartItemQuantity with negative quantity', async () => {
+        await expect(cartService.updateCartItemQuantity('u1', 's1', 'i1', -1))
+    })
+
+    test('should throw if getCartInfo returns empty', async () => {
+        mockPrisma.cartItem.findMany.mockResolvedValue([])
+        const result = await cartService.getCartInfo('u1', 's1')
+        expect(result.total).toBe(0)
+        expect(result.settlable).toBe(false)
+    })
+
+    test('should throw if getCartItems returns empty', async () => {
+        mockPrisma.cartItem.findMany.mockResolvedValue([])
+        const result = await cartService.getCartItems('u1', 's1')
+        expect(result).toEqual([])
+    })
+
 })

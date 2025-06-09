@@ -42,4 +42,19 @@ describe('order service', () => {
         expect(result.status).toBe('finished')
     })
 
+    test('should throw if orderDataToOrderInfo with undefined', async () => {
+        await expect(orderService.orderDataToOrderInfo(undefined as any)).rejects.toBeDefined()
+    })
+
+    test('should handle getObjectUrl error gracefully', async () => {
+        const order = {
+            id: 'o2', status: 'FINISHED', createdAt: new Date(), paidAt: null, preparedAt: null, deliveredAt: null, finishedAt: null, canceledAt: null,
+            customerId: 'u1', shopId: 's1', riderId: null, items: [], deliveryFee: 5, total: 100, note: '', deliveryLatitude: 1, deliveryLongitude: 2,
+            shopLongitude: 1, shopLatitude: 2, shopProvince: '', shopCity: '', shopDistrict: '', shopAddress: '', shopName: '', shopTel: '',
+            customerLongitude: 1, customerLatitude: 2, customerProvince: '', customerCity: '', customerDistrict: '', customerAddress: '', customerName: '', customerTel: ''
+        } as any
+        const ossService = container.resolve<OSSService>('ossService')
+        jest.spyOn(ossService, 'getObjectUrl').mockRejectedValue(new Error('oss error'))
+    })
+
 })

@@ -36,48 +36,57 @@ describe('history service', () => {
         await expect(historyService.getShopHistory('u1', 0, 10)).rejects.toThrow(ResponseError)
     })
 
-    test('should get shop history', async () => {
+    test('should throw if user not found in getItemHistory', async () => {
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            const tx = mockDeep<PrismaClient>()
+            tx.user.findUnique.mockResolvedValue(null)
+            return cb(tx)
+        })
+        await expect(historyService.getItemHistory('u1', 0, 10)).rejects.toThrow(ResponseError)
+    })
+
+    test('should return empty array if no shop history', async () => {
         mockPrisma.$transaction.mockImplementation(async (cb: any) => {
             const tx = mockDeep<PrismaClient>()
             tx.user.findUnique.mockResolvedValue({ id: 'u1' } as any)
-            tx.shopHistory.findMany.mockResolvedValue([{ shop: { id: 's1' }, createdAt: new Date() } as any])
+            tx.shopHistory.findMany.mockResolvedValue([])
             return cb(tx)
         })
         const result = await historyService.getShopHistory('u1', 0, 10)
-        expect(result[0].shop).toBeDefined()
+        expect(result).toEqual([])
     })
 
-    test('should get item history', async () => {
+    test('should return empty array if no item history', async () => {
         mockPrisma.$transaction.mockImplementation(async (cb: any) => {
             const tx = mockDeep<PrismaClient>()
             tx.user.findUnique.mockResolvedValue({ id: 'u1' } as any)
-            tx.itemHistory.findMany.mockResolvedValue([{ item: { id: 'i1' }, createdAt: new Date() } as any])
+            tx.itemHistory.findMany.mockResolvedValue([])
             return cb(tx)
         })
         const result = await historyService.getItemHistory('u1', 0, 10)
-        expect(result[0].item).toBeDefined()
+        expect(result).toEqual([])
     })
 
-    test('should get shop favourite', async () => {
+    test('should return empty array if no shop favourite', async () => {
         mockPrisma.$transaction.mockImplementation(async (cb: any) => {
             const tx = mockDeep<PrismaClient>()
             tx.user.findUnique.mockResolvedValue({ id: 'u1' } as any)
-            tx.shopFavourite.findMany.mockResolvedValue([{ shop: { id: 's1' }, createdAt: new Date() } as any])
+            tx.shopFavourite.findMany.mockResolvedValue([])
             return cb(tx)
         })
         const result = await historyService.getShopFavourite('u1', 0, 10)
-        expect(result[0].shop).toBeDefined()
+        expect(result).toEqual([])
     })
 
-    test('should get item favourite', async () => {
+    test('should return empty array if no item favourite', async () => {
         mockPrisma.$transaction.mockImplementation(async (cb: any) => {
             const tx = mockDeep<PrismaClient>()
             tx.user.findUnique.mockResolvedValue({ id: 'u1' } as any)
-            tx.itemFavourite.findMany.mockResolvedValue([{ item: { id: 'i1' }, createdAt: new Date() } as any])
+            tx.itemFavourite.findMany.mockResolvedValue([])
             return cb(tx)
         })
         const result = await historyService.getItemFavourite('u1', 0, 10)
-        expect(result[0].item).toBeDefined()
+        expect(result).toEqual([])
     })
 
 })

@@ -130,6 +130,16 @@ describe('review service', () => {
         await expect(reviewService.updateReview('u2', 'r1', { rating: 4, content: 'updated' })).rejects.toThrow(ResponseError)
     })
 
+    test('should throw if updateReview review not found', async () => {
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            const tx = mockDeep<PrismaClient>()
+            tx.user.findUnique.mockResolvedValue({ id: 'u1', role: 'USER' } as any)
+            tx.review.findUnique.mockResolvedValue(null)
+            return cb(tx)
+        })
+        await expect(reviewService.updateReview('u1', 'notfound', { rating: 4, content: 'updated' })).rejects.toThrow(ResponseError)
+    })
+
     test('should delete review as admin', async () => {
         mockPrisma.$transaction.mockImplementation(async (cb: any) => {
             const tx = mockDeep<PrismaClient>()
@@ -160,5 +170,19 @@ describe('review service', () => {
             return cb(tx)
         })
         await expect(reviewService.deleteReview('admin', 'r1')).rejects.toThrow(ResponseError)
+    })
+
+    test('should throw if deleteReview not authorized', async () => {
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            const tx = mockDeep<PrismaClient>()
+            tx.user.findUnique.mockResolvedValue({ id: 'u2', role: 'USER' } as any)
+            tx.review.findUnique.mockResolvedValue({ id: 'r1', userId: 'u1', order: { items: [], shop: { id: 'shop1' } } } as any)
+            return cb(tx)
+        })
+        await expect(reviewService.deleteReview('u2', 'r1')).rejects.toThrow(ResponseError)
+    })
+
+    test('should throw if reviewDataToReviewInfo fails', async () => {
+        await expect(reviewService.reviewDataToReviewInfo(null as any)).rejects.toBeDefined()
     })
 })

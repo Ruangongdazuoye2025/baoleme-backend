@@ -139,4 +139,25 @@ describe('user service', () => {
         expect(userService.isCreatedAtVisibleTo({ ...user, id: 'other' }, { ...user, createdAtVisible: true })).toBe(true)
     })
 
+    test('should throw if getUser throws', async () => {
+        mockPrisma.user.findUnique.mockRejectedValue(new Error('db error'))
+        await expect(userService.getUser('u1')).rejects.toThrow('db error')
+    })
+
+    test('should throw if updateUserProfile with no id', async () => {
+        await expect(userService.updateUserProfile('', '', '')).rejects.toBeDefined()
+    })
+
+    test('should throw in getUserRole with null', () => {
+        expect(() => userService.getUserRole(null as any)).toThrow()
+    })
+
+    test('should handle isEmailVisibleTo with null', () => {
+        expect(userService.isEmailVisibleTo({role: UserRole.ADMIN} as any, {role: UserRole.ADMIN} as any)).toBe(true)
+    })
+
+    test('should handle isCreatedAtVisibleTo with null', () => {
+        expect(userService.isCreatedAtVisibleTo({role: UserRole.ADMIN} as any, {role: UserRole.ADMIN} as any)).toBe(true)
+    })
+
 })

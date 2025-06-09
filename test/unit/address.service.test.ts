@@ -143,4 +143,31 @@ describe('address service', () => {
         expect(result[0].id).toBe('a1')
     })
 
+    test('should throw if updateAddressOrder with not found address', async () => {
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            const tx = mockDeep<PrismaClient>()
+            tx.address.findUnique.mockResolvedValue(null)
+            return cb(tx)
+        })
+        await expect(addressService.updateAddressOrder('u1', 'notfound', { before: null })).rejects.toThrow()
+    })
+
+    test('should throw if deleteAddress with not found address', async () => {
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            const tx = mockDeep<PrismaClient>()
+            tx.address.findUnique.mockResolvedValue(null)
+            return cb(tx)
+        })
+        await expect(addressService.deleteAddress('u1', 'notfound')).rejects.toThrow()
+    })
+
+    test('should throw if setDefaultAddress with not found address', async () => {
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            const tx = mockDeep<PrismaClient>()
+            tx.address.findUnique.mockResolvedValue(null)
+            return cb(tx)
+        })
+        await expect(addressService.setDefaultAddress('u1', 'notfound')).rejects.toThrow()
+    })
+
 })

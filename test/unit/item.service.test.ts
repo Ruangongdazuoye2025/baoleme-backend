@@ -64,6 +64,17 @@ describe('item service', () => {
         expect(result.id).toBe('i1')
     })
 
+    test('should throw if updateItemProfile with non-existent category', async () => {
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            const tx = mockDeep<PrismaClient>()
+            tx.item.findUnique.mockResolvedValue({ id: 'i1', shop: { ownerId: 'u1' }, shopId: 's1' } as any)
+            tx.user.findUnique.mockResolvedValue({ id: 'u1', role: 'ADMIN' } as any)
+            tx.itemCategory.findUnique.mockResolvedValue(null)
+            return cb(tx)
+        })
+        await expect(itemService.updateItemProfile('u1', 'i1', { name: 'new', categories: ['notfound'] } as any)).rejects.toThrow('Item category not found')
+    })
+
     test('should delete item', async () => {
         mockPrisma.$transaction.mockImplementation(async (cb: any) => {
             const tx = mockDeep<PrismaClient>()
@@ -125,6 +136,34 @@ describe('item service', () => {
         })
         jest.spyOn(mockOSSService, 'putObject').mockResolvedValue('url')
         await expect(itemService.updateItemImage('u1', 'i1', Buffer.from('img'))).resolves.not.toThrow()
+    })
+
+    test('should throw if getItem with unauthorized user', async () => {
+        mockPrisma.item.findUnique.mockResolvedValue({ id: 'i1', shop: { ownerId: 'u2' } } as any)
+        mockPrisma.user.findUnique.mockResolvedValue(null)
+        await expect(itemService.getItem('u1', 'i1')).rejects.toThrow('Unauthorized')
+    })
+
+    test('should throw if getItem with unavailable item', async () => {
+        mockPrisma.item.findUnique.mockResolvedValue({ id: 'i1', shop: { ownerId: 'u2' }, available: false } as any)
+        mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', role: 'USER' } as any)
+        await expect(itemService.getItem('u1', 'i1')).rejects.toThrow('Item not found')
+    })
+
+    test('should not throw if getItem with admin and unavailable item', async () => {
+        mockPrisma.item.findUnique.mockResolvedValue({ id: 'i1', shop: { ownerId: 'u2' }, available: false } as any)
+        mockPrisma.user.findUnique.mockResolvedValue({ id: 'admin', role: 'ADMIN' } as any)
+        await expect(itemService.getItem('admin', 'i1')).resolves.toBeDefined()
+    })
+
+    test('should not throw if updateItemImage with undefined cover', async () => {
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            const tx = mockDeep<PrismaClient>()
+            tx.item.findUnique.mockResolvedValue({ id: 'i1', shop: { ownerId: 'u1' }, shopId: 's1' } as any)
+            tx.user.findUnique.mockResolvedValue({ id: 'u1', role: 'ADMIN' } as any)
+            return cb(tx)
+        })
+        await expect(itemService.updateItemImage('u1', 'i1', undefined)).resolves.not.toThrow()
     })
 
 })
