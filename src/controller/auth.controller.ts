@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import * as AuthSchema from '../schema/auth.schema'
 import AuthService from '../service/auth.service'
+import AuthMiddleware from '../middleware/auth.middleware'
 import { validateBody } from '../middleware/validator.middleware'
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators'
 import { HTTP_STATUS } from '../constants/app.constants'
@@ -10,6 +11,7 @@ class AuthController {
     @factoryMethod
     static authController(
         @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
     ) {
         const router = Router()
 
@@ -35,7 +37,7 @@ class AuthController {
 
         router.post(
             '/auth/update-email',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateBody(AuthSchema.updateEmail),
             async (req, res) => {
                 const { newEmail } = req.body as AuthSchema.UpdateEmail
@@ -46,7 +48,7 @@ class AuthController {
 
         router.post(
             '/auth/update-password',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateBody(AuthSchema.updatePassword),
             async (req, res) => {
                 const { oldPassword, newPassword } = req.body as AuthSchema.UpdatePassword

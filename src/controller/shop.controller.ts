@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { factoryInjection, factoryMethod, injected } from "../util/injection-decorators";
-import AuthService from "../service/auth.service";
+import AuthMiddleware from "../middleware/auth.middleware";
 import * as UserSchema from "../schema/user.schema";
 import * as ShopSchema from "../schema/shop.schema";
 import { acceptMaximumSize, acceptMimeTypes, validateBody, validateImage, validateParams, validateQuery } from "../middleware/validator.middleware";
 import UserService from "../service/user.service";
 import ShopService from "../service/shop.service";
+import ShopStatisticsService from "../service/shop-statistics.service";
 import upload from "../middleware/upload.middleware";
 import { FILE_CONSTANTS, HTTP_STATUS } from "../constants/app.constants";
 import { ResponseError } from "../util/errors";
@@ -14,14 +15,15 @@ class ShopController {
 
     @factoryMethod
     static shopController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('shopService') shopService: ShopService,
+        @injected('shopStatisticsService') shopStatisticsService: ShopStatisticsService,
     ) {
         const router = Router()
 
         router.get(
             '/shops',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateQuery(ShopSchema.getShopsQuery),
             async (req, res) => {
                 const { p, pn, q, min_ca, max_ca } = req.query as unknown as ShopSchema.GetShopsQuery
@@ -37,7 +39,7 @@ class ShopController {
 
         router.get(
             '/user/:id/shops',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(UserSchema.userProfileParams),
             async (req, res) => {
                 const { id } = req.params
@@ -48,7 +50,7 @@ class ShopController {
 
         router.post(
             '/shops',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateBody(ShopSchema.createShop),
             async (req, res) => {
                 const request = req.body as ShopSchema.CreateShop
@@ -59,7 +61,7 @@ class ShopController {
 
         router.get(
             '/shops/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ShopSchema.shopIdParams),
             async (req, res) => {
                 const { id } = req.params
@@ -70,7 +72,7 @@ class ShopController {
 
         router.delete(
             '/shops/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ShopSchema.shopIdParams),
             async (req, res) => {
                 const { id } = req.params
@@ -81,7 +83,7 @@ class ShopController {
 
         router.patch(
             '/shops/:id/profile',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ShopSchema.shopIdParams),
             validateBody(ShopSchema.updateShopProfile),
             async (req, res) => {
@@ -108,7 +110,7 @@ class ShopController {
                     maxCount: 1
                 }
             ]),
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ShopSchema.shopIdParams),
             acceptMimeTypes(/^image\//),
             acceptMaximumSize(FILE_CONSTANTS.MAX_AVATAR_SIZE),
@@ -127,7 +129,7 @@ class ShopController {
 
         router.patch(
             '/shops/:id/owner',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ShopSchema.shopIdParams),
             validateBody(ShopSchema.updateShopOwner),
             async (req, res) => {
@@ -140,26 +142,26 @@ class ShopController {
 
         router.get(
             '/shops/:id/stats',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ShopSchema.shopIdParams),
             validateQuery(ShopSchema.shopStatsQuery),
             async (req, res) => {
                 const { id } = req.params
                 const { s, t } = req.query as unknown as ShopSchema.ShopStatsQuery
-                const stats = await shopService.getShopStats(req.user!.id, id, s, t)
+                const stats = await shopStatisticsService.getShopStats(req.user!.id, id, s, t)
                 res.status(200).json(stats)
             }
         )
 
         router.get(
             '/shops/:id/top-items',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ShopSchema.shopIdParams),
             validateQuery(ShopSchema.shopTopItemsQuery),
             async (req, res) => {
                 const { id } = req.params
                 const { s, t, n } = req.query as unknown as ShopSchema.ShopTopItemsQuery
-                const result = await shopService.getShopTopItems(req.user!.id, id, s, t, n)
+                const result = await shopStatisticsService.getShopTopItems(req.user!.id, id, s, t, n)
                 res.status(200).json(result)
             }
         )

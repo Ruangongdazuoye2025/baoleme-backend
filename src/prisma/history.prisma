@@ -1,7 +1,7 @@
 model ShopHistory {
     userId    String   @db.Uuid
     shopId    String   @db.Uuid
-    shop      Shop     @relation(fields: [shopId], references: [id])
+    // 移除外键约束
     createdAt DateTime @default(now())
     @@id([userId, shopId])
 }
@@ -9,7 +9,7 @@ model ShopHistory {
 model ShopFavourite {
     userId    String   @db.Uuid
     shopId    String   @db.Uuid
-    shop      Shop     @relation(fields: [shopId], references: [id])
+    // 移除外键约束
     createdAt DateTime @default(now())
     @@id([userId, shopId])
 }
@@ -17,7 +17,7 @@ model ShopFavourite {
 model ItemHistory {
     userId    String   @db.Uuid
     itemId    String   @db.Uuid
-    item      Item     @relation(fields: [itemId], references: [id])
+    // 移除外键约束
     createdAt DateTime @default(now())
     @@id([userId, itemId])
 }
@@ -25,7 +25,7 @@ model ItemHistory {
 model ItemFavourite {
     userId    String   @db.Uuid
     itemId    String   @db.Uuid
-    item      Item     @relation(fields: [itemId], references: [id])
+    // 移除外键约束
     createdAt DateTime @default(now())
     @@id([userId, itemId])
 }

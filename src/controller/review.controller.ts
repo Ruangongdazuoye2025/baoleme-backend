@@ -1,5 +1,5 @@
 import { Router } from "express";
-import AuthService from "../service/auth.service";
+import AuthMiddleware from "../middleware/auth.middleware";
 import ReviewService from "../service/review.service";
 import { factoryInjection, factoryMethod, injected } from "../util/injection-decorators";
 import * as ReviewSchema from "../schema/review.schema";
@@ -9,37 +9,37 @@ import { HTTP_STATUS } from "../constants/app.constants";
 class ReviewController {
     @factoryMethod
     static reviewController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('reviewService') reviewService: ReviewService
     ) {
         const router = Router();
 
         router.post(
             '/comments',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateBody(ReviewSchema.createReview),
             async (req, res) => {
                 const request = req.body as ReviewSchema.CreateReview;
                 const review = await reviewService.createReview(req.user!.id, request);
-                res.status(HTTP_STATUS.CREATED).json(await reviewService.reviewDataToReviewInfo(review));
+                res.status(HTTP_STATUS.CREATED).json(await review);
             }
         )
 
         router.get(
             '/comments/by-order/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ReviewSchema.orderIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as ReviewSchema.OrderIdParams;
                 const review = await reviewService.getReviewByOrderId(req.user!.id, id);
-                res.status(HTTP_STATUS.OK).json(await reviewService.reviewDataToReviewInfo(review));
+                res.status(HTTP_STATUS.OK).json(await review);
             }
 
         )
         
         router.get(
             '/shop/:id/comments',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ReviewSchema.shopIdParams),
             validateQuery(ReviewSchema.getReviewQuery),
             async (req, res) => {
@@ -48,13 +48,13 @@ class ReviewController {
                 const pageSkip = parseInt(p) * parseInt(pn);
                 const pageLimit = parseInt(pn);
                 const reviews = await reviewService.getReviewsByShopId(id, pageSkip, pageLimit);
-                res.status(HTTP_STATUS.OK).json(await Promise.all(reviews.map(review => reviewService.reviewDataToReviewInfo(review))));
+                res.status(HTTP_STATUS.OK).json(await Promise.all(reviews.map(review => review)));
             }
         )
 
         router.patch(
             '/comments/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ReviewSchema.reviewIdParams),
             validateBody(ReviewSchema.updateReview),
             async (req, res) => {
@@ -70,7 +70,7 @@ class ReviewController {
 
         router.delete(
             '/comments/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ReviewSchema.reviewIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as ReviewSchema.ReviewIdParams;

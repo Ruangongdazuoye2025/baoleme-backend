@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import * as ItemSchema from '../schema/item.schema'
-import AuthService from '../service/auth.service'
+import AuthMiddleware from '../middleware/auth.middleware'
 import ItemService from '../service/item.service'
 import { acceptMaximumSize, acceptMimeTypes, validateBody, validateParams, validateQuery, validateImage } from '../middleware/validator.middleware'
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators'
@@ -10,14 +10,14 @@ import upload from '../middleware/upload.middleware'
 class ItemController {
     @factoryMethod
     static itemController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('itemService') itemService: ItemService,
     ) {
         const router = Router()
 
         router.get(
             '/shops/:shopId/item-categories/:categoryId/items',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemSchema.shopIdAndcategoryIdParams),
             validateQuery(ItemSchema.itemsQueryParams),
             async (req, res) => {
@@ -32,7 +32,7 @@ class ItemController {
 
         router.get(
             '/shops/:shopId/items',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateQuery(ItemSchema.itemsQueryParams),
             validateParams(ItemSchema.shopIdParams),
             async (req, res) => {
@@ -47,7 +47,7 @@ class ItemController {
 
         router.get(
             '/items/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemSchema.itemIdParams),
             async (req, res) => {
                 const { id } = req.params
@@ -58,7 +58,7 @@ class ItemController {
 
         router.post(
             '/shops/:shopId/items',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemSchema.shopIdParams),
             validateBody(ItemSchema.createItem),
             async (req, res) => {
@@ -71,7 +71,7 @@ class ItemController {
 
         router.patch(
             '/items/:id/profile',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemSchema.itemIdParams),
             validateBody(ItemSchema.updateItemProfile),
             async (req, res) => {
@@ -85,7 +85,7 @@ class ItemController {
         router.patch(
             '/items/:id/cover',
             upload.single('cover'),
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemSchema.itemIdParams),
             acceptMimeTypes(/^image\//),
             acceptMaximumSize(FILE_CONSTANTS.MAX_AVATAR_SIZE),
@@ -100,7 +100,7 @@ class ItemController {
 
         router.delete(
             '/items/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemSchema.itemIdParams),
             async (req, res) => {
                 const { id } = req.params

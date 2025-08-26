@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import * as CartSchema from '../schema/cart.schema'
-import AuthService from '../service/auth.service'
+import AuthMiddleware from '../middleware/auth.middleware'
 import CartService from '../service/cart.service'
 import { validateBody, validateParams } from '../middleware/validator.middleware'
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators'
@@ -9,15 +9,15 @@ import { HTTP_STATUS } from '../constants/app.constants'
 class CartController {
     @factoryMethod
     static cartController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('cartService') cartService: CartService,
     ) {
         const router = Router()
 
-        // 获取购物车商品数量
+        // Get cart item quantity
         router.get(
             '/cart/:shopId/item/:itemId',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(CartSchema.shopIdAndItemIdParams),
             async (req, res) => {
                 const { shopId, itemId } = req.params
@@ -26,10 +26,10 @@ class CartController {
             }
         )
 
-        // 修改购物车商品数量
+        // Update cart item quantity
         router.patch(
             '/cart/:shopId/item/:itemId',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(CartSchema.shopIdAndItemIdParams),
             validateBody(CartSchema.cartItemQuantityBody),
             async (req, res) => {
@@ -40,10 +40,10 @@ class CartController {
             }
         )
 
-        // 获取购物车信息
+        // Get cart information
         router.get(
             '/cart/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(CartSchema.shopIdParams),
             async (req, res) => {
                 const { id: shopId } = req.params
@@ -52,10 +52,10 @@ class CartController {
             }
         )
 
-        // 获取购物车商品列表
+        // Get cart items list
         router.get(
             '/cart/:id/items',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(CartSchema.shopIdParams),
             async (req, res) => {
                 const { id: shopId } = req.params
@@ -64,10 +64,10 @@ class CartController {
             }
         )
 
-        // 清空购物车
+        // Clear cart
         router.delete(
             '/cart/:id/items',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(CartSchema.shopIdParams),
             async (req, res) => {
                 const { id: shopId } = req.params

@@ -4,6 +4,9 @@ import { CreateReview, UpdateReview } from "../schema/review.schema";
 import { ResponseError } from "../util/errors";
 import { HTTP_STATUS } from "../constants/app.constants";
 import UserService from "./user.service";
+import OrderService from "./order.service";
+import ShopService from "./shop.service";
+import ItemService from "./item.service";
 
 const REVIEW_ERROR_MESSAGES = {
     USER_NOT_FOUND: 'User not found',
@@ -24,190 +27,280 @@ export default class ReviewService {
     @injected
     private userService!: UserService
 
-    async reviewDataToReviewInfo(review: Prisma.ReviewGetPayload<{ include: { user: true } }>) {
+    @injected
+    private orderService!: OrderService
+
+    @injected
+    private shopService!: ShopService
+
+    @injected
+    private itemService!: ItemService
+
+    async reviewDataToReviewInfo(review: { id: string; content: string; rating: number; createdAt: Date; updatedAt: Date; orderId: string; userId: string }) {
+        // 通过服务调用获取用户信息
+        const user = await this.userService.getUser(review.userId)
+        
         return {
             id: review.id,
             order: review.orderId,
             rating: review.rating,
             content: review.content,
             createdAt: review.createdAt,
-            user: {
-                id: review.user.id,
-                name: review.user.name,
-                avatar: await this.userService.getUserAvatarLinks(review.user.id),
-            }
+            user: user ? {
+                id: user.id,
+                name: user.name,
+                avatar: await this.userService.getUserAvatarLinks(user.id),
+            } : null
         };
-        
     }
 
-    private async updateItemsRating(orderEntity: Prisma.OrderGetPayload<{ include: { items: { include: { item: true } }, shop: true } }>, tx: Prisma.TransactionClient) {
-        if (!orderEntity.shop)
-            return
-        for (const item of orderEntity.items) {
-            if (!item.item) {
-                continue
+    private async updateItemsRating(orderId: string, shopId: string) {
+        // 获取订单项
+        const orderItems = await this.orderService.getOrderItemsByOrderId(orderId)
+
+        // 更新每个商品的评分
+        for (const orderItem of orderItems) {
+            if (orderItem.itemId) {
+                // 获取包含该商品的所有订单ID
+                const ordersWithThisItem = await this.orderService.getOrderItemsByItemId(orderItem.itemId)
+                const orderIds = ordersWithThisItem.map(item => item.orderId)
+                
+                // 计算该商品的平均评分
+                const reviewsOnThisItem = await this.prisma.review.findMany({
+                    where: {
+                        orderId: { in: orderIds }
+                    }
+                })
+                
+                const itemAverageRating = reviewsOnThisItem.length > 0 
+                    ? reviewsOnThisItem.reduce((sum, review) => sum + review.rating, 0) / reviewsOnThisItem.length
+                    : 0
+                
+                // 通过ItemService更新商品评分
+                await this.itemService.updateItemRating(orderItem.itemId, itemAverageRating)
             }
-            const itemAverageRating = (await tx.review.aggregate({
-                where: { order: { items: { some: { itemId: item.item.id } } } },
-                _avg: { rating: true },
-            }))._avg.rating || 0
-            await tx.item.update({
-                where: { id: item.item.id },
-                data: {
-                    rating: itemAverageRating,
-                }
-            })
         }
-        const shopAverageRating = (await tx.review.aggregate({
-            where: { order: { shopId: orderEntity.shop.id } },
-            _avg: { rating: true },
-        }))._avg.rating || 0
-        await tx.shop.update({
-            where: { id: orderEntity.shop.id },
-            data: {
-                rating: shopAverageRating,
+
+        // 更新店铺评分
+        const shopOrderIds = await this.orderService.getOrderIdsByShopId(shopId)
+        
+        const reviewsOnThisShop = await this.prisma.review.findMany({
+            where: {
+                orderId: { in: shopOrderIds }
             }
         })
+        
+        const shopAverageRating = reviewsOnThisShop.length > 0 
+            ? reviewsOnThisShop.reduce((sum, review) => sum + review.rating, 0) / reviewsOnThisShop.length
+            : 0
+        
+        // 通过ShopService更新店铺评分
+        await this.shopService.updateShopRating(shopId, shopAverageRating)
     }
 
     async createReview(userId: string, request: CreateReview) {
         const { order, rating, content } = request;
+        
+        // 验证用户存在
+        const user = await this.userService.getUser(userId)
+        if (!user) {
+            throw new ResponseError(HTTP_STATUS.NOT_FOUND, REVIEW_ERROR_MESSAGES.USER_NOT_FOUND)
+        }
+        
+        // 获取订单信息（通过OrderService）
+        const orderEntity = await this.orderService.getOrderForReview(order, userId)
+        if (!orderEntity) {
+            throw new ResponseError(404, "Order not found")
+        }
+        if (orderEntity.status !== 'FINISHED') {
+            throw new ResponseError(403, "Order is not finished")
+        }
+        
+        // 验证店铺存在
+        if (!orderEntity.shopId) {
+            throw new ResponseError(404, "Shop not found")
+        }
+        
+        const shop = await this.shopService.getShop(orderEntity.shopId)
+        if (!shop) {
+            throw new ResponseError(404, "Shop not found")
+        }
+        
         return await this.prisma.$transaction(async tx => {
-            const user = await tx.user.findUnique({ where: { id: userId}})
-            if (!user) {
-                throw new ResponseError(HTTP_STATUS.NOT_FOUND, REVIEW_ERROR_MESSAGES.USER_NOT_FOUND)
-            }
-            const orderEntity = await tx.order.findUnique({
-                where: {
-                    id: order,
-                    customerId: userId,
-                },
-                include: {
-                    shop: true,
-                    items: { include: { item: true } },
-                    review: true,
-                }
+            // 检查是否已有评论
+            const existingReview = await tx.review.findUnique({
+                where: { orderId: order }
             })
-            if (!orderEntity) {
-                throw new ResponseError(404, "Order not found")
-            }
-            if (orderEntity.status !== 'FINISHED') {
-                throw new ResponseError(403, "Order is not finished")
-            }
-            if (!orderEntity.shop) {
-                throw new ResponseError(404, "Shop not found")
-            }
-            if (orderEntity.review) {
+            if (existingReview) {
                 throw new ResponseError(409, "Order already has a review")
             }
+            
             const review = await tx.review.create({
                 data: {
                     userId: userId,
                     orderId: orderEntity.id,
                     rating: rating,
                     content: content,
-                },
-                include: { user: true }
+                }
             })
-            await this.updateItemsRating(orderEntity, tx)
-            return review
+            
+            // 异步更新评分（在事务外执行，避免跨服务依赖）
+            setImmediate(() => {
+                this.updateItemsRating(orderEntity.id, orderEntity.shopId!)
+                    .catch(error => console.error('Failed to update ratings:', error))
+            })
+            
+            return await this.reviewDataToReviewInfo(review)
         })
     }
 
     async getReviewByOrderId(userId: string, id: string) {
-        return await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({ where: { id: userId}})
-            if (!currentUser) {
-                throw new ResponseError(401, "User not found")
-            }
-            const order = await tx.order.findUnique({ 
-                where: { 
-                    id,
-                },
-                include: {
-                    shop: true,
-                    review: { include: { user: true } },
-                }
-            })
-            if (!order || (currentUser.role !== "ADMIN" && order.customerId !== userId && order.shop?.ownerId !== userId)) {
-                throw new ResponseError(404, "Order not found")
-            }
-            if (!order.review) {
-                throw new ResponseError(404, "Review not found")
-            }
-            return order.review
+        // 验证用户权限
+        const currentUser = await this.userService.getUser(userId)
+        if (!currentUser) {
+            throw new ResponseError(401, "User not found")
+        }
+        
+        // 获取订单信息（通过OrderService）
+        const order = await this.orderService.getOrderForReview(id)
+        if (!order) {
+            throw new ResponseError(404, "Order not found")
+        }
+        
+        // 检查权限：管理员、客户或店铺所有者
+        let hasPermission = currentUser.role === "ADMIN" || order.customerId === userId
+        
+        if (!hasPermission && order.shopId) {
+            const shop = await this.shopService.getShop(order.shopId)
+            hasPermission = shop?.ownerId === userId
+        }
+        
+        if (!hasPermission) {
+            throw new ResponseError(404, "Order not found")
+        }
+        
+        // 获取评论
+        const review = await this.prisma.review.findUnique({
+            where: { orderId: id }
         })
+        
+        if (!review) {
+            throw new ResponseError(404, "Review not found")
+        }
+        
+        return await this.reviewDataToReviewInfo(review)
     }
 
     async getReviewsByShopId(id: string, pageSkip: number, pageLimit: number) {
-        return await this.prisma.$transaction(async tx => {
-            const shop = await tx.shop.findUnique({
-                where: { id },
-                include: {
-                    orders: {
-                        where: { review: { isNot: null} },
-                        select: { review: { include: { user: true } } },
-                        orderBy: { review: { createdAt: 'desc' } },
-                        skip: pageSkip,
-                        take: pageLimit,
-                    }
-                },
-            })
-            if (!shop) {
-                throw new ResponseError(404, "Shop not found")
-            }
-            return shop.orders.map(order => order.review!)
+        // 验证店铺存在
+        const shop = await this.shopService.getShop(id)
+        if (!shop) {
+            throw new ResponseError(404, "Shop not found")
+        }
+        
+        // 获取店铺的所有订单ID（通过OrderService）
+        const orderIds = await this.orderService.getOrderIdsByShopId(id)
+        
+        // 获取这些订单的评论
+        const reviews = await this.prisma.review.findMany({
+            where: { 
+                orderId: { in: orderIds }
+            },
+            orderBy: { createdAt: 'desc' },
+            skip: pageSkip,
+            take: pageLimit
         })
+        
+        // 转换为完整信息
+        return await Promise.all(reviews.map(review => 
+            this.reviewDataToReviewInfo(review)
+        ))
     }
 
     async updateReview(userId: string, id: string, updateReview: UpdateReview) {
+        // 验证用户权限
+        const currentUser = await this.userService.getUser(userId)
+        if (!currentUser) {
+            throw new ResponseError(401, "User not found")
+        }
+        
+        // 获取评论信息
+        const review = await this.prisma.review.findUnique({ 
+            where: { id: id }
+        })
+        if (!review) {
+            throw new ResponseError(404, "Review not found")
+        }
+        
+        // 检查权限
+        if (review.userId !== userId && currentUser.role !== "ADMIN") {
+            throw new ResponseError(403, "You are not authorized to update this review or admin")
+        }
+        
+        // 获取订单信息（通过OrderService）
+        const order = await this.orderService.getOrderForReview(review.orderId)
+        if (!order) {
+            throw new ResponseError(404, "Order not found")
+        }
+        
         return await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({ where: { id: userId}})
-            if (!currentUser) {
-                throw new ResponseError(401, "User not found")
-            }
-            const review = await tx.review.findUnique({ 
-                where: { id: id },
-                include: { order: { include: { items: { include: { item: true } }, shop: true } } }
-            })
-            if (!review) {
-                throw new ResponseError(404, "Review not found")
-            }
-            if (review.userId !== userId && currentUser.role !== "ADMIN") {
-                throw new ResponseError(403, "You are not authorized to update this review or admin")
-            }
-            const ret = await tx.review.update({
+            // 更新评论
+            const updatedReview = await tx.review.update({
                 where: { id: id },
                 data: {
                     rating: updateReview.rating,
                     content: updateReview.content,
                 }
             })
-            await this.updateItemsRating(review.order, tx)
-            return ret
+            
+            // 异步更新评分（在事务外执行）
+            if (order.shopId) {
+                setImmediate(() => {
+                    this.updateItemsRating(order.id, order.shopId!)
+                        .catch(error => console.error('Failed to update ratings:', error))
+                })
+            }
+            
+            return await this.reviewDataToReviewInfo(updatedReview)
         })
     }
 
     async deleteReview(userId: string, id: string) {
+        // 验证用户权限
+        const currentUser = await this.userService.getUser(userId)
+        if (!currentUser) {
+            throw new ResponseError(401, "User not found")
+        }
+        
+        // 获取评论信息
+        const review = await this.prisma.review.findUnique({
+            where: { id }
+        })
+        if (!review) {
+            throw new ResponseError(404, "Review not found")
+        }
+        
+        // 检查权限
+        if (review.userId !== userId && currentUser.role !== "ADMIN") {
+            throw new ResponseError(403, "Permission denied")
+        }
+        
+        // 获取订单信息（通过OrderService）
+        const order = await this.orderService.getOrderForReview(review.orderId)
+        
         await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({ where: { id: userId}})
-            if (!currentUser) {
-                throw new ResponseError(401, "User not found")
-            }
-            const review = await tx.review.findUnique({
-                where: { id },
-                include: { order: { include: { items: { include: { item: true } }, shop: true } } }
-            })
-            if (!review) {
-                throw new ResponseError(404, "Review not found")
-            }
-            if (review.userId !== userId && currentUser.role !== "ADMIN") {
-                throw new ResponseError(403, "Permission denied")
-            }
+            // 删除评论
             await tx.review.delete({
                 where: { id },
             })
-            this.updateItemsRating(review.order, tx)
         })
+        
+        // 异步更新评分（在事务外执行）
+        if (order?.shopId) {
+            setImmediate(() => {
+                this.updateItemsRating(order.id, order.shopId!)
+                    .catch(error => console.error('Failed to update ratings:', error))
+            })
+        }
     }
 }

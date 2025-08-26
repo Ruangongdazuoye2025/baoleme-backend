@@ -1,35 +1,35 @@
 import Joi from 'joi';
 
 const COORDINATE_SCHEMA = Joi.array().ordered(
-    Joi.number().required(), // 经度 (longitude)
-    Joi.number().required()  // 纬度 (latitude)
+    Joi.number().required(), // longitude
+    Joi.number().required()  // latitude
 ).length(2).required().messages({
-    'array.length': '经纬度坐标必须包含两个数字',
-    'any.required': '经纬度坐标为必填项',
+    'array.length': 'Coordinates must contain two numbers',
+    'any.required': 'Coordinates are required',
 });
 
 export const createAddressSchema = Joi.object({
     province: Joi.string().min(1).required().messages({
-        'string.empty': '省级行政区名不能为空', 'string.min': '省级行政区名不能为空', 'any.required': '省级行政区名为必填项',
+        'string.empty': 'Province name cannot be empty', 'string.min': 'Province name cannot be empty', 'any.required': 'Province name is required',
     }),
     city: Joi.string().min(1).required().messages({
-        'string.empty': '地级行政区名不能为空', 'string.min': '地级行政区名不能为空', 'any.required': '地级行政区名为必填项',
+        'string.empty': 'City name cannot be empty', 'string.min': 'City name cannot be empty', 'any.required': 'City name is required',
     }),
     district: Joi.string().min(1).required().messages({
-        'string.empty': '县级行政区名不能为空', 'string.min': '县级行政区名不能为空', 'any.required': '县级行政区名为必填项',
+        'string.empty': 'District name cannot be empty', 'string.min': 'District name cannot be empty', 'any.required': 'District name is required',
     }),
     address: Joi.string().min(1).required().messages({
-        'string.empty': '详细地址不能为空', 'string.min': '详细地址不能为空', 'any.required': '详细地址为必填项',
+        'string.empty': 'Detailed address cannot be empty', 'string.min': 'Detailed address cannot be empty', 'any.required': 'Detailed address is required',
     }),
     name: Joi.string().min(1).required().messages({
-        'string.empty': '联系人姓名不能为空', 'string.min': '联系人姓名不能为空', 'any.required': '联系人姓名为必填项',
+        'string.empty': 'Contact name cannot be empty', 'string.min': 'Contact name cannot be empty', 'any.required': 'Contact name is required',
     }),
     tel: Joi.string().pattern(/^[0-9]+$/).required().messages({
-        'string.empty': '联系人电话不能为空', 'string.pattern.base': '联系人电话格式不正确，应全为数字', 'any.required': '联系人电话为必填项',
+        'string.empty': 'Contact phone cannot be empty', 'string.pattern.base': 'Contact phone format is incorrect, should be all digits', 'any.required': 'Contact phone is required',
     }),
     coordinate: COORDINATE_SCHEMA,
     isDefault: Joi.boolean().required().messages({
-        'any.required': '是否为默认地址为必填项',
+        'any.required': 'Whether it is the default address is required',
     }),
 }).required();
 
@@ -51,12 +51,12 @@ export const updateAddressSchema = Joi.object({
     address: Joi.string().min(1).optional(),
     name: Joi.string().min(1).optional(),
     tel: Joi.string().pattern(/^[0-9]+$/).optional().messages({
-        'string.pattern.base': '联系人电话格式不正确，应全为数字',
+        'string.pattern.base': 'Contact phone format is incorrect, should be all digits',
     }),
     coordinate: Joi.array().ordered(
         Joi.number().required(), Joi.number().required()
     ).length(2).optional().messages({
-        'array.length': '经纬度坐标必须包含两个数字',
+        'array.length': 'Coordinates must contain two numbers',
     }),
     isDefault: Joi.boolean().optional(),
 }).min(1).required();
@@ -74,15 +74,15 @@ export interface UpdateAddressApiDto {
 
 export const addressIdParamsSchema = Joi.object({
     id: Joi.string().uuid().required().messages({
-        'string.guid': '地址ID必须是有效的UUID格式',
-        'any.required': '地址ID为必填项',
+        'string.guid': 'Address ID must be a valid UUID format',
+        'any.required': 'Address ID is required',
     }),
 }).required();
 
 export const updateAddressOrderSchema = Joi.object({
     before: Joi.string().uuid().allow(null).required().messages({
-        'string.guid': 'before 参数必须是有效的UUID格式或null',
-        'any.required': 'before 参数为必填项',
+        'string.guid': 'before parameter must be a valid UUID format or null',
+        'any.required': 'before parameter is required',
     })
 }).required();
 

@@ -9,14 +9,14 @@ import { CreateAddressApiDto, UpdateAddressApiDto, UpdateAddressOrderDto } from 
 const MAX_ADDRESSES_PER_USER = 16;
 
 const ADDRESS_ERROR_MESSAGES = {
-    NOT_FOUND: '收货地址未找到',
-    UNAUTHORIZED: '无权查看此地址',
-    UNAUTHORIZED_MODIFY: '无权修改此地址',
-    UNAUTHORIZED_DELETE: '无权删除此地址',
-    UNAUTHORIZED_OPERATION: '无权操作此地址',
-    MAX_LIMIT_REACHED: `一个用户最多只能拥有 ${MAX_ADDRESSES_PER_USER} 个收货地址`,
-    MOVE_TARGET_NOT_FOUND: '需要移动的地址未找到或不属于当前用户',
-    BEFORE_ADDRESS_NOT_FOUND: '目标位置 (before) 地址未找到或不属于当前用户',
+    NOT_FOUND: 'Address not found',
+    UNAUTHORIZED: 'Unauthorized to view this address',
+    UNAUTHORIZED_MODIFY: 'Unauthorized to modify this address',
+    UNAUTHORIZED_DELETE: 'Unauthorized to delete this address',
+    UNAUTHORIZED_OPERATION: 'Unauthorized to operate on this address',
+    MAX_LIMIT_REACHED: `A user can have at most ${MAX_ADDRESSES_PER_USER} addresses`,
+    MOVE_TARGET_NOT_FOUND: 'Target address to move not found or does not belong to current user',
+    BEFORE_ADDRESS_NOT_FOUND: 'Target position (before) address not found or does not belong to current user',
 } as const;
 
 export interface ApiAddressResponse {
@@ -51,7 +51,7 @@ export default class AddressService {
     }
 
     /**
-     * 一个辅助方法：重新调整用户地址的 displayOrder
+     * A helper method: readjust user address displayOrder
      */
     private async reorderdisplayOrders(
         tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
@@ -92,7 +92,7 @@ export default class AddressService {
                 });
             }
 
-            // 新地址总是添加到末尾
+            // New address is always added to the end
             const targetdisplayOrder = currentAddresses.length;
 
             const createdAddress = await tx.address.create({

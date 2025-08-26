@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "out/src/index.js",
   "scripts": {
-    "test:unit": "npx jest --rootDir=test/unit",
+    "test:unit": "npx jest --rootDir=test/unit --passWithNoTests",
     "build": "npx prisma generate --sql && npx tsc -p .",
     "prestart": "npm run build",
     "start": "node ."

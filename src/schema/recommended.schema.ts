@@ -61,13 +61,13 @@ export interface GetRecommendedItemsQuery {
 }
 
 export const getRecommendedOrdersQuery = Joi.object({
-    d: Joi.number().min(0).optional().description('最大配送距离，单位km'),
-    t: Joi.number().integer().min(0).optional().description('最大配送时间，单位分钟'),
-    lat: Joi.number().required().description('骑手当前位置纬度'),
-    lon: Joi.number().required().description('骑手当前位置经度'),
-    m: Joi.number().integer().min(0).optional().description('最小订单金额'),
-    p: Joi.number().integer().min(0).default(0).optional().description('页码，从0开始'),
-    pn: Joi.number().integer().min(1).max(100).default(10).optional().description('每页数量'),
+    d: Joi.number().min(0).optional().description('Maximum delivery distance in km'),
+    t: Joi.number().integer().min(0).optional().description('Maximum delivery time in minutes'),
+    lat: Joi.number().required().description('Current latitude of rider'),
+    lon: Joi.number().required().description('Current longitude of rider'),
+    m: Joi.number().integer().min(0).optional().description('Minimum order amount'),
+    p: Joi.number().integer().min(0).default(0).optional().description('Page number, starting from 0'),
+    pn: Joi.number().integer().min(1).max(100).default(10).optional().description('Number per page'),
 }).required()
 
 export interface GetRecommendedOrdersQuery {
