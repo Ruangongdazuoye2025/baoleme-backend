@@ -4,6 +4,7 @@ import AuthService from '../service/auth.service'
 import ItemService from '../service/item.service'
 import { acceptMaximumSize, acceptMimeTypes, validateBody, validateParams, validateQuery, validateImage } from '../middleware/validator.middleware'
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators'
+import { FILE_CONSTANTS, HTTP_STATUS } from '../constants/app.constants'
 import upload from '../middleware/upload.middleware'
 
 class ItemController {
@@ -87,7 +88,7 @@ class ItemController {
             authService.requireAuth(),
             validateParams(ItemSchema.itemIdParams),
             acceptMimeTypes(/^image\//),
-            acceptMaximumSize(4 * 1024 * 1024),
+            acceptMaximumSize(FILE_CONSTANTS.MAX_AVATAR_SIZE),
             validateImage(),
             async (req, res) => {
                 const { id } = req.params

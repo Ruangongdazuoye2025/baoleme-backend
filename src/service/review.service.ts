@@ -2,12 +2,24 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { classInjection, injected } from "../util/injection-decorators";
 import { CreateReview, UpdateReview } from "../schema/review.schema";
 import { ResponseError } from "../util/errors";
+import { HTTP_STATUS } from "../constants/app.constants";
 import UserService from "./user.service";
+
+const REVIEW_ERROR_MESSAGES = {
+    USER_NOT_FOUND: 'User not found',
+    ORDER_NOT_FOUND: 'Order not found',
+    ORDER_NOT_FINISHED: 'Order is not finished',
+    SHOP_NOT_FOUND: 'Shop not found',
+    ORDER_ALREADY_HAS_REVIEW: 'Order already has a review',
+    REVIEW_NOT_FOUND: 'Review not found',
+    UNAUTHORIZED_UPDATE: 'You are not authorized to update this review or admin',
+    PERMISSION_DENIED: 'Permission denied',
+} as const
 
 @classInjection
 export default class ReviewService {
     @injected
-    private prisma!: PrismaClient;
+    private prisma!: PrismaClient
 
     @injected
     private userService!: UserService
@@ -63,7 +75,7 @@ export default class ReviewService {
         return await this.prisma.$transaction(async tx => {
             const user = await tx.user.findUnique({ where: { id: userId}})
             if (!user) {
-                throw new ResponseError(404, "User not found")
+                throw new ResponseError(HTTP_STATUS.NOT_FOUND, REVIEW_ERROR_MESSAGES.USER_NOT_FOUND)
             }
             const orderEntity = await tx.order.findUnique({
                 where: {

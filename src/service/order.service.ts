@@ -1,8 +1,23 @@
 import { Prisma, PrismaClient, OrderStatus } from '@prisma/client'
 import { classInjection, injected } from '../util/injection-decorators'
 import { ResponseError } from '../util/errors'
+import { HTTP_STATUS } from '../constants/app.constants'
 import haversine from 'haversine-distance'
 import OSSService from './oss.service'
+
+const ORDER_ERROR_MESSAGES = {
+    PERMISSION_DENIED: 'Permission denied',
+    UNAUTHORIZED: 'Unauthorized',
+    SHOP_NOT_FOUND: 'Shop not found',
+    SHOP_NOT_OPEN: 'Shop is not open',
+    CART_EMPTY: 'Cart is empty',
+    ITEMS_UNAVAILABLE: 'Some items are not available or out of stock',
+    ORDER_BELOW_MINIMUM: 'Order total is below the minimum value',
+    ADDRESS_NOT_FOUND: 'Address not found',
+    DELIVERY_DISTANCE_EXCEEDED: 'Delivery distance exceeded',
+    ORDER_NOT_FOUND: 'Order not found',
+    ORDER_STATUS_NOT_PREPARED: 'Order status is not PREPARED',
+} as const
 
 type Status = 'unpaid' | 'preparing' | 'prepared' | 'delivering' | 'finished' | 'canceled'
 
@@ -14,7 +29,6 @@ function toOrderStatus(status: Status | undefined): OrderStatus | undefined {
 
 @classInjection
 export default class OrderService {
-
     @injected
     private prisma!: PrismaClient
 
@@ -108,7 +122,7 @@ export default class OrderService {
                 where: { id: currentUserId },
             })
             if (!currentUser || currentUser.role !== 'ADMIN') {
-                throw new ResponseError(403, 'Permission denied')
+                throw new ResponseError(HTTP_STATUS.FORBIDDEN, ORDER_ERROR_MESSAGES.PERMISSION_DENIED)
             }
             return await tx.order.findMany({
                 skip: pageSkip,
@@ -126,7 +140,7 @@ export default class OrderService {
                 where: { id: currentUserId },
             })
             if (!currentUser) {
-                throw new ResponseError(401, 'Unauthorized')
+                throw new ResponseError(HTTP_STATUS.UNAUTHORIZED, ORDER_ERROR_MESSAGES.UNAUTHORIZED)
             }
             return await tx.order.findMany({
                 where: { customerId: currentUserId, status: toOrderStatus(status) },

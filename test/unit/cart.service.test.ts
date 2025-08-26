@@ -6,26 +6,29 @@ import CartService from '../../src/service/cart.service'
 import { ResponseError } from '../../src/util/errors'
 import ItemService from '../../src/service/item.service'
 
+const mockPrisma = mockDeep<PrismaClient>()
+
 describe('cart service', () => {
-    const mockPrisma = mockDeep<PrismaClient>()
     const container = awilix.createContainer({
         injectionMode: awilix.InjectionMode.PROXY,
         strict: true,
     })
-    container.register({
-        prisma: awilix.asValue(mockPrisma),
-        ossService: awilix.asValue({
-            getObjectUrl: jest.fn(() => Promise.resolve('mock-url')),
-            putObject: jest.fn(() => Promise.resolve('mock-url')),
-            removeObject: jest.fn(() => Promise.resolve()),
-        } as any),
-        cartService: awilix.asClass(CartService),
-        itemService: awilix.asClass(ItemService)
-    })
-    let cartService = container.resolve<CartService>('cartService')
+    
+    let cartService: CartService
 
     beforeEach(() => {
         jest.clearAllMocks()
+        container.register({
+            prisma: awilix.asValue(mockPrisma),
+            ossService: awilix.asValue({
+                getObjectUrl: jest.fn(() => Promise.resolve('mock-url')),
+                putObject: jest.fn(() => Promise.resolve('mock-url')),
+                removeObject: jest.fn(() => Promise.resolve()),
+            } as any),
+            itemService: awilix.asClass(ItemService),
+            cartService: awilix.asClass(CartService),
+        })
+        cartService = container.resolve<CartService>('cartService')
         mockPrisma.shop.findUnique.mockResolvedValue({
             id: 's1',
             deliveryPrice: 0,

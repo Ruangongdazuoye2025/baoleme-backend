@@ -4,6 +4,7 @@ import RecommendedService from "../service/recommended.service";
 import { factoryInjection, factoryMethod, injected } from "../util/injection-decorators";
 import { validateQuery } from "../middleware/validator.middleware";
 import * as RecommendedSchema from "../schema/recommended.schema";
+import { HTTP_STATUS } from "../constants/app.constants";
 
 class RecommendedController {
 
@@ -43,7 +44,7 @@ class RecommendedController {
                     maxTime,
                     addressId
                 );
-                res.status(200).json(shopInfos);
+                res.status(HTTP_STATUS.OK).json(shopInfos);
             }
         )
 
@@ -78,7 +79,7 @@ class RecommendedController {
                     minPrice,
                     maxPrice
                 );
-                res.status(200).json(items);
+                res.status(HTTP_STATUS.OK).json(items);
             }
         )
 
@@ -87,8 +88,8 @@ class RecommendedController {
             authService.requireAuth(),
             validateQuery(RecommendedSchema.getRecommendedOrdersQuery),
             async (req, res) => {
-                // OpenAPI风格：参数应为 ?d=...&t=...&lat=...&lon=...&m=...&p=...&pn=...
-                // 页码p从0开始，pn为每页数量
+                // OpenAPI风格：参数应�??d=...&t=...&lat=...&lon=...&m=...&p=...&pn=...
+                // 页码p�?开始，pn为每页数�?
                 const { d, t, lat, lon, m, p, pn } = req.query as unknown as RecommendedSchema.GetRecommendedOrdersQuery;
                 const page = Math.max(0, parseInt(p as any));
                 const pageSize = Math.max(1, parseInt(pn as any));
@@ -105,7 +106,7 @@ class RecommendedController {
                     t !== undefined ? parseInt(t) : undefined,
                     m !== undefined ? parseFloat(m) : undefined
                 );
-                res.status(200).json(orders);
+                res.status(HTTP_STATUS.OK).json(orders);
             }
         )
 

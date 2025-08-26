@@ -1,25 +1,27 @@
-import { Prisma, PrismaClient, Shop, ShopCategory, User } from "@prisma/client";
+import { Prisma, PrismaClient, Shop, ShopCategory, User, UserRole } from "@prisma/client";
 import { classInjection, injected } from "../util/injection-decorators";
 import OSSService from "./oss.service";
 import { CreateShop, UpdateShopProfile } from "../schema/shop.schema";
 import { ResponseError } from "../util/errors";
+import { BaseServiceUtils } from "./base.service";
+import { FILE_CONSTANTS, HTTP_STATUS } from "../constants/app.constants";
 import sharp from "sharp";
 
 @classInjection
 export default class ShopService {
 
     @injected
-    private prisma!: PrismaClient
+    protected declare prisma: PrismaClient
 
     @injected
     private ossService!: OSSService
 
+    private readonly ossContentType = FILE_CONSTANTS.IMAGE_CONTENT_TYPE
+
     async getFilteredGlobalShops(currentUserId: string, pageSkip: number, pageLimit: number, filterKeywords: string[], minCreatedAt?: Date, maxCreatedAt?: Date) {
         return await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
-            if (!currentUser || currentUser.role !== 'ADMIN') {
-                throw new ResponseError(403, 'Permission denied')
-            }
+            await BaseServiceUtils.checkUserPermission(this.prisma, currentUserId, currentUserId, [UserRole.ADMIN], false)
+            
             return await tx.shop.findMany({
                 include: { categories: true },
                 where: {
@@ -45,9 +47,11 @@ export default class ShopService {
 
     async getShopsByOwnerId(ownerId: string) {
         return await this.prisma.$transaction(async tx => {
-            if (!await tx.user.findUnique({ where: { id: ownerId } })) {
-                throw new ResponseError(404, 'User not found')
-            }
+            await BaseServiceUtils.findByIdOrThrow(
+                () => tx.user.findUnique({ where: { id: ownerId } }),
+                'User not found'
+            )
+            
             return await tx.shop.findMany({
                 include: { categories: true },
                 where: { ownerId },
@@ -112,16 +116,16 @@ export default class ShopService {
     async createShop(userId: string, request: CreateShop) {
         const { name, description, categories, address, opened, openTimeStart, openTimeEnd, deliveryThreshold, deliveryPrice, maximumDistance } = request
         return await this.prisma.$transaction(async tx => {
-            const user = await tx.user.findUnique({ where: { id: userId } })
-            if (!user) {
-                throw new ResponseError(401, 'Unauthorized')
-            }
+            await BaseServiceUtils.validateUserExists(this.prisma, userId)
+            
+            // Validate categories exist
             await Promise.all(request.categories.map(async id => {
-                const category = await tx.shopCategory.findUnique({ where: { id } })
-                if (!category) {
-                    throw new ResponseError(404, 'Shop category not found')
-                }
+                await BaseServiceUtils.findByIdOrThrow(
+                    () => tx.shopCategory.findUnique({ where: { id } }),
+                    'Shop category not found'
+                )
             }))
+            
             return await tx.shop.create({
                 data: {
                     name,
@@ -149,14 +153,13 @@ export default class ShopService {
     }
 
     async getShop(id: string) {
-        const shop = await this.prisma.shop.findUnique({
-            where: { id },
-            include: { categories: true }
-        })
-        if (!shop) {
-            throw new ResponseError(404, 'Shop not found')
-        }
-        return shop
+        return await BaseServiceUtils.findByIdOrThrow(
+            () => this.prisma.shop.findUnique({
+                where: { id },
+                include: { categories: true }
+            }),
+            'Shop not found'
+        )
     }
 
     async deleteShop(currentUserId: string, id: string) {
@@ -233,8 +236,6 @@ export default class ShopService {
             })
         })
     }
-
-    readonly ossContentType = 'image/webp'
 
     async updateShopImage(currentUserId: string, id: string, cover: Buffer | undefined, detail: Buffer | undefined, license: Buffer | undefined) {
         await this.prisma.$transaction(async tx => {

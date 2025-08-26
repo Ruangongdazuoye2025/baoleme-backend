@@ -5,16 +5,17 @@ import * as awilix from 'awilix'
 import AddressService from '../../src/service/address.service'
 import { ResponseError } from '../../src/util/errors'
 
+const mockPrisma = mockDeep<PrismaClient>()
+const container = awilix.createContainer({
+    injectionMode: awilix.InjectionMode.PROXY,
+    strict: true,
+})
+container.register({
+    prisma: awilix.asValue(mockPrisma),
+    addressService: awilix.asClass(AddressService),
+})
+
 describe('address service', () => {
-    const mockPrisma = mockDeep<PrismaClient>()
-    const container = awilix.createContainer({
-        injectionMode: awilix.InjectionMode.PROXY,
-        strict: true,
-    })
-    container.register({
-        prisma: awilix.asValue(mockPrisma),
-        addressService: awilix.asClass(AddressService),
-    })
     let addressService = container.resolve<AddressService>('addressService')
 
     beforeEach(() => {

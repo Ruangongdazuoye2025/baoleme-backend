@@ -3,6 +3,7 @@ import { factoryInjection, factoryMethod, injected } from '../util/injection-dec
 import AuthService from '../service/auth.service';
 import AddressService from '../service/address.service';
 import { validateBody, validateParams } from '../middleware/validator.middleware';
+import { HTTP_STATUS } from '../constants/app.constants';
 import * as AddressSchema from '../schema/address.schema';
 
 class AddressController {
@@ -22,7 +23,7 @@ class AddressController {
                 const userId = req.user!.id;
                 const addressData = req.body as AddressSchema.CreateAddressApiDto;
                 const newAddress = await addressService.addAddress(userId, addressData);
-                res.status(201).json(newAddress);
+                res.status(HTTP_STATUS.CREATED).json(newAddress);
             }
         );
 
@@ -32,7 +33,7 @@ class AddressController {
             async (req: Request, res: Response) => {
                 const userId = req.user!.id;
                 const addresses = await addressService.getAddresses(userId);
-                res.status(200).json(addresses);
+                res.status(HTTP_STATUS.OK).json(addresses);
             }
         );
 
@@ -58,7 +59,7 @@ class AddressController {
                 const { id: addressId } = req.params;
                 const addressData = req.body as AddressSchema.UpdateAddressApiDto;
                 const updatedAddress = await addressService.updateAddress(userId, addressId, addressData);
-                res.status(200).json(updatedAddress);
+                res.status(HTTP_STATUS.OK).json(updatedAddress);
             }
         );
 
@@ -72,7 +73,7 @@ class AddressController {
                 const { id: addressIdToMove } = req.params;
                 const orderData = req.body as AddressSchema.UpdateAddressOrderDto;
                 await addressService.updateAddressOrder(userId, addressIdToMove, orderData);
-                res.status(204).send();
+                res.status(HTTP_STATUS.NO_CONTENT).send();
             }
         );
 
@@ -84,19 +85,22 @@ class AddressController {
                 const userId = req.user!.id;
                 const { id: addressId } = req.params;
                 await addressService.deleteAddress(userId, addressId);
-                res.status(204).send();
+                res.status(HTTP_STATUS.NO_CONTENT).send();
             }
         );
 
-        // 如果需要一个专门的 "设为默认" 接口，可以保留或调整
-        // 例如 PATCH /addresses/{id}/default (但通常 PATCH /addresses/{id} 更新 isDefault 字段即可)
-        // 已经在 updateAddress 中处理了 isDefault，所以可以考虑移除这个特定的路由
-        // router.patch(
-        //     `${API_BASE_PATH}/:id/default`,
-        //     authService.requireAuth(),
-        //     validateParams(AddressSchema.addressIdParamsSchema),
-        //     async (req: Request, res: Response) => {
-        //         const userId = req.user!.id;
+        // 设为默认地址的专用路由
+        router.patch(
+            `${API_BASE_PATH}/:id/default`,
+            authService.requireAuth(),
+            validateParams(AddressSchema.addressIdParamsSchema),
+            async (req: Request, res: Response) => {
+                const userId = req.user!.id;
+                const { id: addressId } = req.params;
+                const address = await addressService.setDefaultAddress(userId, addressId);
+                res.status(HTTP_STATUS.OK).json(address);
+            }
+        );
         //         const { id: addressId } = req.params;
         //         const updatedAddress = await addressService.setDefaultAddress(userId, addressId);
         //         res.status(200).json(updatedAddress);

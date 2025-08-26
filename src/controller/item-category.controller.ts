@@ -4,6 +4,7 @@ import AuthService from '../service/auth.service'
 import ItemService from '../service/item.service'
 import { validateBody, validateParams } from '../middleware/validator.middleware'
 import * as ItemCategorySchema from '../schema/item-category.schema'
+import { HTTP_STATUS } from '../constants/app.constants'
 
 class ItemCategoryController {
     @factoryMethod
@@ -20,7 +21,7 @@ class ItemCategoryController {
             async (req, res) => {
                 const { shopId } = req.params
                 const categories = await itemService.getItemCategories(shopId)
-                res.status(200).json(categories.map(category => itemService.itemCategoryDataToItemCategoryInfo(category)))
+                res.status(HTTP_STATUS.OK).json(categories.map(category => itemService.itemCategoryDataToItemCategoryInfo(category)))
             }
         )
 
@@ -33,7 +34,7 @@ class ItemCategoryController {
                 const { shopId } = req.params
                 const { name } = req.body as ItemCategorySchema.AddUpdateItemCategory
                 const category = await itemService.addItemCategory(req.user!.id, shopId, name)
-                res.status(201).json(itemService.itemCategoryDataToItemCategoryInfo(category))
+                res.status(HTTP_STATUS.CREATED).json(itemService.itemCategoryDataToItemCategoryInfo(category))
             }
         )
 
@@ -44,7 +45,7 @@ class ItemCategoryController {
             async (req, res) => {
                 const { shopId, categoryId } = req.params
                 const category = await itemService.getItemCategory(shopId, categoryId)
-                res.status(200).json(itemService.itemCategoryDataToItemCategoryInfo(category))
+                res.status(HTTP_STATUS.OK).json(itemService.itemCategoryDataToItemCategoryInfo(category))
             }
         )
 
@@ -57,7 +58,7 @@ class ItemCategoryController {
                 const { shopId, categoryId } = req.params
                 const { name } = req.body as ItemCategorySchema.AddUpdateItemCategory
                 const category = await itemService.updateItemCategory(req.user!.id, shopId, categoryId, name)
-                res.status(200).json(itemService.itemCategoryDataToItemCategoryInfo(category))
+                res.status(HTTP_STATUS.OK).json(itemService.itemCategoryDataToItemCategoryInfo(category))
             }
         )
 
@@ -70,7 +71,7 @@ class ItemCategoryController {
                 const { shopId, categoryId } = req.params
                 const { before } = req.body as ItemCategorySchema.UpdateItemCategoryPos
                 await itemService.updateItemCategoryPos(req.user!.id, shopId, categoryId, before)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 
@@ -81,7 +82,7 @@ class ItemCategoryController {
             async (req, res) => {
                 const { shopId, categoryId } = req.params
                 await itemService.deleteItemCategory(req.user!.id, shopId, categoryId)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 
