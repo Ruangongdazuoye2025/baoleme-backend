@@ -3,6 +3,7 @@ import * as AuthSchema from '../schema/auth.schema'
 import AuthService from '../service/auth.service'
 import { validateBody } from '../middleware/validator.middleware'
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators'
+import { HTTP_STATUS } from '../constants/app.constants'
 
 class AuthController {
 
@@ -18,7 +19,7 @@ class AuthController {
             async (req, res) => {
                 const { email, password } = req.body as AuthSchema.RegisterLogin
                 await authService.register(email, password)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 
@@ -28,7 +29,7 @@ class AuthController {
             async (req, res) => {
                 const { email, password } = req.body as AuthSchema.RegisterLogin
                 const { token, user } = await authService.login(email, password)
-                res.status(200).json({ token, id: user.id })
+                res.status(HTTP_STATUS.OK).json({ token, id: user.id })
             }
         )
 
@@ -39,7 +40,7 @@ class AuthController {
             async (req, res) => {
                 const { newEmail } = req.body as AuthSchema.UpdateEmail
                 await authService.updateEmail(req.user!.id, newEmail)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 
@@ -50,7 +51,7 @@ class AuthController {
             async (req, res) => {
                 const { oldPassword, newPassword } = req.body as AuthSchema.UpdatePassword
                 const token = await authService.updatePassword(req.user!.id, oldPassword, newPassword)
-                res.status(200).json({ token })
+                res.status(HTTP_STATUS.OK).json({ token })
             }
         )
 
@@ -60,7 +61,7 @@ class AuthController {
             async (req, res) => {
                 const { email } = req.body as AuthSchema.ForgotPassword
                 await authService.forgotPassword(email)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 
@@ -70,7 +71,7 @@ class AuthController {
             async (req, res) => {
                 const { token } = req.body as AuthSchema.VerifyToken
                 await authService.verifyRegister(token)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 
@@ -80,7 +81,7 @@ class AuthController {
             async (req, res) => {
                 const { token } = req.body as AuthSchema.VerifyToken
                 await authService.verifyEmail(token)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 
@@ -90,7 +91,7 @@ class AuthController {
             async (req, res) => {
                 const { token, newPassword } = req.body as AuthSchema.ResetPassword
                 await authService.resetPassword(token, newPassword)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 

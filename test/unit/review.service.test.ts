@@ -6,22 +6,25 @@ import ReviewService from '../../src/service/review.service'
 import UserService from '../../src/service/user.service'
 import { ResponseError } from '../../src/util/errors'
 
+const mockPrisma = mockDeep<PrismaClient>()
+const mockUserService = mockDeep<UserService>()
+
 describe('review service', () => {
-    const mockPrisma = mockDeep<PrismaClient>()
-    const mockUserService = mockDeep<UserService>()
     const container = awilix.createContainer({
         injectionMode: awilix.InjectionMode.PROXY,
         strict: true,
     })
-    container.register({
-        prisma: awilix.asValue(mockPrisma),
-        userService: awilix.asValue(mockUserService),
-        reviewService: awilix.asClass(ReviewService),
-    })
-    let reviewService = container.resolve<ReviewService>('reviewService')
+    
+    let reviewService: ReviewService
 
     beforeEach(() => {
         jest.clearAllMocks()
+        container.register({
+            prisma: awilix.asValue(mockPrisma),
+            userService: awilix.asValue(mockUserService),
+            reviewService: awilix.asClass(ReviewService),
+        })
+        reviewService = container.resolve<ReviewService>('reviewService')
     })
 
     test('should create a review', async () => {

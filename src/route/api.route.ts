@@ -23,13 +23,12 @@ class APIRoute {
         const router = Router()
 
         router.use(express.json())
-        router.use('/', helloController)
-        router.use('/', authController)
-        router.use('/', userController)
-        router.use('/', addressController)
+        
+        // Register all controllers
         router.use(helloController)
         router.use(authController)
         router.use(userController)
+        router.use(addressController)
         router.use(shopController)
         router.use(shopCategoryController)
         router.use(itemCategoryController)
@@ -39,6 +38,8 @@ class APIRoute {
         router.use(orderController)
         router.use(cartController)
         router.use(reviewController)
+        
+        // Error handler must be last
         router.use(errorHandler)
 
         return router

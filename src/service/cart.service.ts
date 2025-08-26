@@ -1,7 +1,14 @@
 import { PrismaClient } from '@prisma/client'
 import { classInjection, injected } from '../util/injection-decorators'
 import { ResponseError } from '../util/errors'
+import { HTTP_STATUS } from '../constants/app.constants'
 import ItemService from './item.service'
+
+const CART_ERROR_MESSAGES = {
+    ITEM_NOT_FOUND_IN_CART: 'Item not found in cart',
+    ITEM_NOT_FOUND_IN_SHOP: 'Item not found in shop',
+    SHOP_NOT_FOUND: 'Shop not found',
+} as const
 
 @classInjection
 export default class CartService {
@@ -17,7 +24,7 @@ export default class CartService {
             where: { customerId_itemId: { customerId: userId, itemId } },
             include: { item: true }
         })
-        if (!item || item.item.shopId !== shopId) throw new ResponseError(404, 'Item not found in cart')
+        if (!item || item.item.shopId !== shopId) throw new ResponseError(HTTP_STATUS.NOT_FOUND, CART_ERROR_MESSAGES.ITEM_NOT_FOUND_IN_CART)
         return { quantity: item.quantity }
     }
 
@@ -25,7 +32,7 @@ export default class CartService {
     async updateCartItemQuantity(userId: string, shopId: string, itemId: string, quantity: number) {
         // 检查商品是否属于该店铺
         const item = await this.prisma.item.findUnique({ where: { id: itemId } })
-        if (!item || item.shopId !== shopId) throw new ResponseError(404, 'Item not found in shop')
+        if (!item || item.shopId !== shopId) throw new ResponseError(HTTP_STATUS.NOT_FOUND, CART_ERROR_MESSAGES.ITEM_NOT_FOUND_IN_SHOP)
         const key = { customerId_itemId: { customerId: userId, itemId } }
         if (quantity === 0) {
             const existing = await this.prisma.cartItem.findUnique({ where: key });
@@ -47,7 +54,7 @@ export default class CartService {
     async getCartInfo(userId: string, shopId: string) {
         const shop = await this.prisma.shop.findUnique({ where: { id: shopId } })
         if (!shop)
-            throw new ResponseError(404, 'Shop not found')
+            throw new ResponseError(HTTP_STATUS.NOT_FOUND, CART_ERROR_MESSAGES.SHOP_NOT_FOUND)
         const items = await this.prisma.cartItem.findMany({
             where: { customerId: userId, item: { shopId } },
             include: { item: true }

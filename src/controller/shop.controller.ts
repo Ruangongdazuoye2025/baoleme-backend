@@ -7,6 +7,8 @@ import { acceptMaximumSize, acceptMimeTypes, validateBody, validateImage, valida
 import UserService from "../service/user.service";
 import ShopService from "../service/shop.service";
 import upload from "../middleware/upload.middleware";
+import { FILE_CONSTANTS, HTTP_STATUS } from "../constants/app.constants";
+import { ResponseError } from "../util/errors";
 
 class ShopController {
 
@@ -29,7 +31,7 @@ class ShopController {
                 const minCreatedAt = min_ca ? new Date(min_ca) : undefined
                 const maxCreatedAt = max_ca ? new Date(max_ca) : undefined
                 const shops = await shopService.getFilteredGlobalShops(req.user!.id, pageSkip, pageLimit, filterKeywords, minCreatedAt, maxCreatedAt)
-                res.status(200).json(await Promise.all(shops.map(async shop => shopService.shopDataToFullShopInfo(shop))))
+                res.status(HTTP_STATUS.OK).json(await Promise.all(shops.map(async shop => shopService.shopDataToFullShopInfo(shop))))
             }
         )
 
@@ -109,7 +111,7 @@ class ShopController {
             authService.requireAuth(),
             validateParams(ShopSchema.shopIdParams),
             acceptMimeTypes(/^image\//),
-            acceptMaximumSize(4 * 1024 * 1024),
+            acceptMaximumSize(FILE_CONSTANTS.MAX_AVATAR_SIZE),
             validateImage(),
             async (req, res) => {
                 const { id } = req.params

@@ -4,6 +4,7 @@ import ReviewService from "../service/review.service";
 import { factoryInjection, factoryMethod, injected } from "../util/injection-decorators";
 import * as ReviewSchema from "../schema/review.schema";
 import { validateBody, validateParams, validateQuery } from "../middleware/validator.middleware";
+import { HTTP_STATUS } from "../constants/app.constants";
 
 class ReviewController {
     @factoryMethod
@@ -20,7 +21,7 @@ class ReviewController {
             async (req, res) => {
                 const request = req.body as ReviewSchema.CreateReview;
                 const review = await reviewService.createReview(req.user!.id, request);
-                res.status(201).json(await reviewService.reviewDataToReviewInfo(review));
+                res.status(HTTP_STATUS.CREATED).json(await reviewService.reviewDataToReviewInfo(review));
             }
         )
 
@@ -31,7 +32,7 @@ class ReviewController {
             async (req, res) => {
                 const { id } = req.params as unknown as ReviewSchema.OrderIdParams;
                 const review = await reviewService.getReviewByOrderId(req.user!.id, id);
-                res.status(200).json(await reviewService.reviewDataToReviewInfo(review));
+                res.status(HTTP_STATUS.OK).json(await reviewService.reviewDataToReviewInfo(review));
             }
 
         )
@@ -47,7 +48,7 @@ class ReviewController {
                 const pageSkip = parseInt(p) * parseInt(pn);
                 const pageLimit = parseInt(pn);
                 const reviews = await reviewService.getReviewsByShopId(id, pageSkip, pageLimit);
-                res.status(200).json(await Promise.all(reviews.map(review => reviewService.reviewDataToReviewInfo(review))));
+                res.status(HTTP_STATUS.OK).json(await Promise.all(reviews.map(review => reviewService.reviewDataToReviewInfo(review))));
             }
         )
 
@@ -60,7 +61,7 @@ class ReviewController {
                 const { id } = req.params as unknown as ReviewSchema.ReviewIdParams;
                 const updateReview = req.body as ReviewSchema.UpdateReview;
                 const review = await reviewService.updateReview(req.user!.id, id, updateReview);
-                res.status(200).json({
+                res.status(HTTP_STATUS.OK).json({
                     rating: review.rating,
                     content: review.content,
                 });
@@ -74,7 +75,7 @@ class ReviewController {
             async (req, res) => {
                 const { id } = req.params as unknown as ReviewSchema.ReviewIdParams;
                 await reviewService.deleteReview(req.user!.id, id);
-                res.status(204).send();
+                res.status(HTTP_STATUS.NO_CONTENT).send();
             }
         )
 

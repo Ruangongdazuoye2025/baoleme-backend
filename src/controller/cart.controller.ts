@@ -4,6 +4,7 @@ import AuthService from '../service/auth.service'
 import CartService from '../service/cart.service'
 import { validateBody, validateParams } from '../middleware/validator.middleware'
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators'
+import { HTTP_STATUS } from '../constants/app.constants'
 
 class CartController {
     @factoryMethod
@@ -21,7 +22,7 @@ class CartController {
             async (req, res) => {
                 const { shopId, itemId } = req.params
                 const result = await cartService.getCartItemQuantity(req.user!.id, shopId, itemId)
-                res.status(200).json(result)
+                res.status(HTTP_STATUS.OK).json(result)
             }
         )
 
@@ -35,7 +36,7 @@ class CartController {
                 const { shopId, itemId } = req.params
                 const { quantity } = req.body
                 const result = await cartService.updateCartItemQuantity(req.user!.id, shopId, itemId, quantity)
-                res.status(200).json(result)
+                res.status(HTTP_STATUS.OK).json(result)
             }
         )
 
@@ -47,7 +48,7 @@ class CartController {
             async (req, res) => {
                 const { id: shopId } = req.params
                 const result = await cartService.getCartInfo(req.user!.id, shopId)
-                res.status(200).json(result)
+                res.status(HTTP_STATUS.OK).json(result)
             }
         )
 
@@ -59,7 +60,7 @@ class CartController {
             async (req, res) => {
                 const { id: shopId } = req.params
                 const result = await cartService.getCartItems(req.user!.id, shopId)
-                res.status(200).json(result)
+                res.status(HTTP_STATUS.OK).json(result)
             }
         )
 
@@ -71,7 +72,7 @@ class CartController {
             async (req, res) => {
                 const { id: shopId } = req.params
                 await cartService.clearCart(req.user!.id, shopId)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 

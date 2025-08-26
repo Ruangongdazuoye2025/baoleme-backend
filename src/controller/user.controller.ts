@@ -6,6 +6,7 @@ import { acceptMaximumSize, acceptMimeTypes, requireFile, validateBody, validate
 import upload from '../middleware/upload.middleware'
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators'
 import { ResponseError } from '../util/errors'
+import { FILE_CONSTANTS, HTTP_STATUS } from '../constants/app.constants'
 
 class UserController {
     @factoryMethod
@@ -23,10 +24,10 @@ class UserController {
                 const { id } = req.params
                 const user = await userService.getUser(id)
                 if (!user) {
-                    throw new ResponseError(404, 'User not found')
+                    throw new ResponseError(HTTP_STATUS.NOT_FOUND, 'User not found')
                 }
                 const { origin, thumbnail } = await userService.getUserAvatarLinks(user.id)
-                res.status(200).json({
+                res.status(HTTP_STATUS.OK).json({
                     id: user.id,
                     email: userService.isEmailVisibleTo(req.user!, user) ? user.email : undefined,
                     createdAt: userService.isCreatedAtVisibleTo(req.user!, user) ? user.createdAt : undefined,
@@ -66,7 +67,7 @@ class UserController {
             validateParams(UserSchema.userProfileParams),
             requireFile(),
             acceptMimeTypes(/^image\//),
-            acceptMaximumSize(4 * 1024 * 1024),
+            acceptMaximumSize(FILE_CONSTANTS.MAX_AVATAR_SIZE),
             validateImage(),
             async (req, res) => {
                 const { id } = req.params

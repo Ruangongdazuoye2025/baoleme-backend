@@ -1,7 +1,9 @@
-import { Item, ItemCategory, Prisma, PrismaClient } from "@prisma/client";
+import { Item, ItemCategory, Prisma, PrismaClient, UserRole } from "@prisma/client";
 import { classInjection, injected } from "../util/injection-decorators";
 import { ResponseError } from "../util/errors";
 import { CreateItem, UpdateItemProfile } from '../schema/item.schema'
+import { BaseServiceUtils } from "./base.service";
+import { FILE_CONSTANTS } from "../constants/app.constants";
 import OSSService from "./oss.service";
 import sharp from "sharp";
 
@@ -9,10 +11,12 @@ import sharp from "sharp";
 export default class ItemService {
 
     @injected
-    private prisma!: PrismaClient
+    protected declare prisma: PrismaClient
 
     @injected
     private ossService!: OSSService
+
+    private readonly ossContentType = FILE_CONSTANTS.IMAGE_CONTENT_TYPE
 
     itemCategoryDataToItemCategoryInfo(category: ItemCategory) {
         return {
@@ -22,17 +26,17 @@ export default class ItemService {
     }
 
     async getItemCategories(shopId: string) {
-        const shop = await this.prisma.shop.findUnique({
-            where: { id: shopId },
-            include: {
-                itemCategories: {
-                    orderBy: { order: 'asc' },
+        const shop = await BaseServiceUtils.findByIdOrThrow(
+            () => this.prisma.shop.findUnique({
+                where: { id: shopId },
+                include: {
+                    itemCategories: {
+                        orderBy: { order: 'asc' },
+                    },
                 },
-            },
-        })
-        if (!shop) {
-            throw new ResponseError(404, 'Shop not found')
-        }
+            }),
+            'Shop not found'
+        )
         return shop.itemCategories
     }
 
@@ -41,19 +45,20 @@ export default class ItemService {
             const currentUser = await tx.user.findUnique({
                 where: { id: currentUserId },
             })
-            const shop = await tx.shop.findUnique({
-                where: { id: shopId },
-            })
-            if (!shop) {
-                throw new ResponseError(404, 'Shop not found')
-            }
-            if (!currentUser || (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN')) {
+            const shop = await BaseServiceUtils.findByIdOrThrow(
+                () => tx.shop.findUnique({ where: { id: shopId } }),
+                'Shop not found'
+            )
+            
+            if (!currentUser || (currentUser.id !== shop.ownerId && currentUser.role !== UserRole.ADMIN)) {
                 throw new ResponseError(403, 'Permission denied')
             }
+            
             const maxOrder = (await tx.itemCategory.aggregate({
                 where: { shopId },
                 _max: { order: true },
             }))._max.order ?? -1
+            
             return await tx.itemCategory.create({
                 data: {
                     name,
@@ -225,7 +230,6 @@ export default class ItemService {
             cover: { origin: coverOrigin, thumbnail: coverThumbnail }
         }
     }
-    readonly ossContentType = 'image/webp'
 
     async itemDataToFullItemInfo(item: Prisma.ItemGetPayload<{ include: { categories: true } }>) {
         return {

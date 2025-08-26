@@ -4,16 +4,20 @@ import sharp from 'sharp'
 import OSSService from './oss.service'
 import { classInjection, injected } from '../util/injection-decorators'
 import { UpdateUserProfile } from '../schema/user.schema'
+import { BaseServiceUtils } from './base.service'
+import { FILE_CONSTANTS, DEFAULTS } from '../constants/app.constants'
 import * as uuid from 'uuid'
 
 @classInjection
 export default class UserService {
 
     @injected
-    private prisma!: PrismaClient
+    protected declare prisma: PrismaClient
 
     @injected
     private ossService!: OSSService
+
+    private readonly ossContentType = FILE_CONSTANTS.IMAGE_CONTENT_TYPE
 
     async getUser(id: string) {
         return await this.prisma.user.findUnique({ where: { id } })
@@ -21,32 +25,44 @@ export default class UserService {
 
     async updateUserProfile(currentUserId: string, id: string, name?: string, description?: string, role?: UpdateUserProfile['role'], emailVisible?: boolean, createdAtVisible?: boolean): Promise<User> {
         let roleKey: UserRole | undefined
-        if (role === 'customer') {
-            roleKey = UserRole.USER
-        } else if (role === 'rider') {
-            roleKey = UserRole.RIDER
-        } else if (role === 'merchant') {
-            roleKey = UserRole.MERCHANT
-        } else if (role === 'admin') {
-            roleKey = UserRole.ADMIN
-        } else {
-            roleKey = undefined
+        switch (role) {
+            case 'customer':
+                roleKey = UserRole.USER
+                break
+            case 'rider':
+                roleKey = UserRole.RIDER
+                break
+            case 'merchant':
+                roleKey = UserRole.MERCHANT
+                break
+            case 'admin':
+                roleKey = UserRole.ADMIN
+                break
+            default:
+                roleKey = undefined
         }
+
         return await this.prisma.$transaction(async tx => {
-            const user = await tx.user.findUnique({ where: { id } })
-            if (!user) {
-                throw new ResponseError(404, 'User not found')
-            }
+            const user = await BaseServiceUtils.findByIdOrThrow(
+                () => tx.user.findUnique({ where: { id } }),
+                'User not found'
+            )
+            
             const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
             if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.id !== id)) {
                 throw new ResponseError(403, 'Permission denied')
             }
-            if (currentUser.role !== UserRole.ADMIN && role === 'admin') {
+            
+            // Additional check for admin role assignment
+            if (role === 'admin' && currentUser.role !== UserRole.ADMIN) {
                 throw new ResponseError(403, 'Permission denied')
             }
-            if (typeof(name) === 'string' && name.length === 0) {
-                name = '用户 ' + btoa(String.fromCharCode(...uuid.parse(id))).slice(0, 8)
+            
+            // Generate default name if empty string provided
+            if (typeof name === 'string' && name.length === 0) {
+                name = DEFAULTS.USER_NAME_PREFIX + btoa(String.fromCharCode(...uuid.parse(id))).slice(0, DEFAULTS.USER_NAME_ID_LENGTH)
             }
+            
             return await tx.user.update({
                 where: { id },
                 data: { name, description, role: roleKey, emailVisible, createdAtVisible },
@@ -54,14 +70,12 @@ export default class UserService {
         })
     }
 
-    readonly ossContentType = 'image/webp'
-
     private async checkModifyAvatarPermission(currentUserId: string, id: string) {
-        return await this.prisma.$transaction(async tx => {
-            const user = await tx.user.findUnique({ where: { id } })
-            if (!user) {
-                throw new ResponseError(404, 'User not found')
-            }
+        await this.prisma.$transaction(async tx => {
+            const user = await BaseServiceUtils.findByIdOrThrow(
+                () => tx.user.findUnique({ where: { id } }),
+                'User not found'
+            )
             const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
             if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.id !== id)) {
                 throw new ResponseError(403, 'Permission denied')

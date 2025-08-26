@@ -1,8 +1,9 @@
 import Joi from 'joi'
+import { AUTH_CONSTANTS } from '../constants/app.constants'
 
 export const registerLogin = Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required()
+    password: Joi.string().min(AUTH_CONSTANTS.PASSWORD_MIN_LENGTH).required()
 }).required()
 
 export interface RegisterLogin {
@@ -20,7 +21,7 @@ export interface UpdateEmail {
 
 export const updatePassword = Joi.object({
     oldPassword: Joi.string().required(),
-    newPassword: Joi.string().min(6).required()
+    newPassword: Joi.string().min(AUTH_CONSTANTS.PASSWORD_MIN_LENGTH).required()
 }).required()
 
 export interface UpdatePassword {
@@ -46,7 +47,7 @@ export interface VerifyToken {
 
 export const resetPassword = Joi.object({
     token: Joi.string().required(),
-    newPassword: Joi.string().min(6).required()
+    newPassword: Joi.string().min(AUTH_CONSTANTS.PASSWORD_MIN_LENGTH).required()
 }).required()
 
 export interface ResetPassword {

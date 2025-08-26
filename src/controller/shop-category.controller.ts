@@ -4,6 +4,7 @@ import AuthService from "../service/auth.service";
 import ShopService from "../service/shop.service";
 import * as ShopCategorySchema from "../schema/shop-category.schema";
 import { validateBody, validateParams } from "../middleware/validator.middleware";
+import { HTTP_STATUS } from "../constants/app.constants";
 
 class ShopCategoryController {
 
@@ -20,7 +21,7 @@ class ShopCategoryController {
             authService.requireAuth(),
             async (req, res) => {
                 const categories = await shopService.getShopCategories()
-                res.status(200).json(categories.map(category => shopService.shopCategoryDataToShopCategoryInfo(category)))
+                res.status(HTTP_STATUS.OK).json(categories.map(category => shopService.shopCategoryDataToShopCategoryInfo(category)))
             }
         )
 
@@ -31,7 +32,7 @@ class ShopCategoryController {
             async (req, res) => {
                 const { name } = req.body as ShopCategorySchema.AddUpdateShopCategory
                 const category = await shopService.addShopCategory(req.user!.id, name)
-                res.status(201).json(shopService.shopCategoryDataToShopCategoryInfo(category))
+                res.status(HTTP_STATUS.CREATED).json(shopService.shopCategoryDataToShopCategoryInfo(category))
             }
         )
 
@@ -42,7 +43,7 @@ class ShopCategoryController {
             async (req, res) => {
                 const { id } = req.params
                 const category = await shopService.getShopCategory(id)
-                res.status(200).json(shopService.shopCategoryDataToShopCategoryInfo(category))
+                res.status(HTTP_STATUS.OK).json(shopService.shopCategoryDataToShopCategoryInfo(category))
             }
         )
 
@@ -55,7 +56,7 @@ class ShopCategoryController {
                 const { id } = req.params
                 const { name } = req.body as ShopCategorySchema.AddUpdateShopCategory
                 const category = await shopService.updateShopCategory(req.user!.id, id, name)
-                res.status(200).json(shopService.shopCategoryDataToShopCategoryInfo(category))
+                res.status(HTTP_STATUS.OK).json(shopService.shopCategoryDataToShopCategoryInfo(category))
             }
         )
 
@@ -68,7 +69,7 @@ class ShopCategoryController {
                 const { id } = req.params
                 const { before } = req.body as ShopCategorySchema.UpdateShopCategoryPos
                 await shopService.updateShopCategoryPos(req.user!.id, id, before)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 
@@ -79,7 +80,7 @@ class ShopCategoryController {
             async (req, res) => {
                 const { id } = req.params
                 await shopService.deleteShopCategory(req.user!.id, id)
-                res.status(204).send()
+                res.status(HTTP_STATUS.NO_CONTENT).send()
             }
         )
 

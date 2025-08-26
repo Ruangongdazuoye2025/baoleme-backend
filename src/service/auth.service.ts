@@ -4,10 +4,9 @@ import { ResponseError } from '../util/errors'
 import { classInjection, injected } from '../util/injection-decorators'
 import TokenService from './token.service'
 import MailService from './mail.service'
+import { AUTH_CONSTANTS, DEFAULTS, HTTP_STATUS } from '../constants/app.constants'
 import passport from 'passport'
 import * as uuid from 'uuid'
-
-const SALT_ROUNDS = 10
 
 @classInjection
 export default class AuthService {
@@ -23,6 +22,31 @@ export default class AuthService {
 
     @injected('passport')
     private passport!: passport.Authenticator
+
+    /**
+     * Check if current user has permission to access/modify a resource
+     */
+    private async checkUserPermission(
+        currentUserId: string, 
+        targetUserId: string, 
+        allowedRoles: any[] = ['ADMIN'],
+        allowSelf = true
+    ): Promise<void> {
+        const currentUser = await this.prisma.user.findUnique({ 
+            where: { id: currentUserId } 
+        })
+        
+        if (!currentUser) {
+            throw new ResponseError(401, 'Unauthorized')
+        }
+
+        const hasRolePermission = allowedRoles.includes(currentUser.role)
+        const isSelf = allowSelf && currentUser.id === targetUserId
+        
+        if (!hasRolePermission && !isSelf) {
+            throw new ResponseError(403, 'Permission denied')
+        }
+    }
 
     requireAuth() {
         return this.passport.authenticate('jwt', { session: false, failWithError: true })
@@ -45,18 +69,23 @@ export default class AuthService {
     }
 
     async register(email: string, password: string) {
-        await this.prisma.$transaction(async tx => {
-            if (await tx.user.findUnique({ where: { email } })) {
+        return await this.prisma.$transaction(async tx => {
+            const existingUser = await tx.user.findUnique({ where: { email } })
+            if (existingUser) {
                 throw new ResponseError(403, 'Email already exists')
             }
-            const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+            
+            const hashedPassword = await bcrypt.hash(password, AUTH_CONSTANTS.SALT_ROUNDS)
             const user = await tx.user.create({
                 data: { email, password: hashedPassword }
             })
+            
+            const userName = DEFAULTS.USER_NAME_PREFIX + btoa(String.fromCharCode(...uuid.parse(user.id))).slice(0, DEFAULTS.USER_NAME_ID_LENGTH)
             await tx.user.update({
                 where: { id: user.id },
-                data: { name: '用户 ' + btoa(String.fromCharCode(...uuid.parse(user.id))).slice(0, 8)}
+                data: { name: userName }
             })
+            
             const token = this.tokenService.generateVerifyToken(user.id)
             await this.mailService.sendVerifyRegisterEmail(email, token)
         })
@@ -91,14 +120,18 @@ export default class AuthService {
             if (!user) {
                 throw new ResponseError(403, 'Permission denied')
             }
-            if (!await bcrypt.compare(oldPassword, user.password)) {
+            
+            const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password)
+            if (!isOldPasswordValid) {
                 throw new ResponseError(403, 'Old password is wrong')
             }
-            const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS)
+            
+            const hashedPassword = await bcrypt.hash(newPassword, AUTH_CONSTANTS.SALT_ROUNDS)
             await tx.user.update({
                 where: { id },
                 data: { password: hashedPassword }
             })
+            
             return this.tokenService.generateAccessToken(user.id, hashedPassword)
         })
     }
@@ -151,7 +184,7 @@ export default class AuthService {
             if (!user) {
                 throw new ResponseError(403, 'Permission denied')
             }
-            const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS)
+            const hashedPassword = await bcrypt.hash(newPassword, AUTH_CONSTANTS.SALT_ROUNDS)
             await tx.user.update({
                 where: { id },
                 data: { password: hashedPassword }
