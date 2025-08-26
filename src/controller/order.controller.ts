@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators'
-import AuthService from '../service/auth.service'
+import AuthMiddleware from '../middleware/auth.middleware'
 import OrderService from '../service/order.service'
 import * as OrderSchema from '../schema/order.schema'
 import { validateBody, validateParams, validateQuery } from '../middleware/validator.middleware'
@@ -10,14 +10,14 @@ class OrderController {
 
     @factoryMethod
     static orderController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('orderService') orderService: OrderService
     ) {
         const router = Router()
 
         router.get(
             '/orders/as-customer',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateQuery(OrderSchema.getOrdersQuery),
             async (req, res) => {
                 const { p, pn, s } = req.query as unknown as OrderSchema.GetOrdersQuery
@@ -30,7 +30,7 @@ class OrderController {
 
         router.get(
             '/orders/as-shop/:shopId',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(OrderSchema.shopIdParams),
             validateQuery(OrderSchema.getOrdersAsShopQuery),
             async (req, res) => {
@@ -45,7 +45,7 @@ class OrderController {
 
         router.get(
             '/orders/as-rider',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateQuery(OrderSchema.getOrdersQuery),
             async (req, res) => {
                 const { p, pn, s } = req.query as unknown as OrderSchema.GetOrdersQuery
@@ -58,7 +58,7 @@ class OrderController {
 
         router.get(
             '/orders',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateQuery(OrderSchema.getOrdersQuery),
             async (req, res) => {
                 const { p, pn, s } = req.query as unknown as OrderSchema.GetOrdersQuery
@@ -71,7 +71,7 @@ class OrderController {
 
         router.post(
             '/orders',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateBody(OrderSchema.createOrder),
             async (req, res) => {
                 const { shopId, addressId, note } = req.body as OrderSchema.CreateOrder
@@ -82,7 +82,7 @@ class OrderController {
 
         router.get(
             '/orders/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(OrderSchema.orderIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as OrderSchema.OrderIdParams
@@ -97,7 +97,7 @@ class OrderController {
 
         router.patch(
             '/orders/:id/rider',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(OrderSchema.orderIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as OrderSchema.OrderIdParams
@@ -108,7 +108,7 @@ class OrderController {
 
         router.patch(
             '/orders/:id/status',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(OrderSchema.orderIdParams),
             validateBody(OrderSchema.updateOrderStatus),
             async (req, res) => {
@@ -121,7 +121,7 @@ class OrderController {
 
         router.patch(
             '/orders/:id/delivery',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(OrderSchema.orderIdParams),
             validateBody(OrderSchema.updateOrderDelivery),
             async (req, res) => {
@@ -134,7 +134,7 @@ class OrderController {
 
         router.delete(
             '/orders/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(OrderSchema.orderIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as OrderSchema.OrderIdParams

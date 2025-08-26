@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { factoryInjection, factoryMethod, injected } from "../util/injection-decorators";
-import AuthService from "../service/auth.service";
+import AuthMiddleware from "../middleware/auth.middleware";
 import { validateParams,validateQuery } from "../middleware/validator.middleware";
 import HistoryService from "../service/history.service";
 import * as HistorySchema from "../schema/history.schema";
@@ -8,14 +8,14 @@ import { HTTP_STATUS } from "../constants/app.constants";
 class HistoryController {
     @factoryMethod
     static recordController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('historyService') historyService: HistoryService,
     ) {
         const router = Router()
 
         router.get(
             '/records/shops',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateQuery(HistorySchema.historyQueryParams),
             async (req, res) => {
                 const { p, pn} = req.query as unknown as HistorySchema.HistoryQueryParams
@@ -28,7 +28,7 @@ class HistoryController {
 
         router.post(
             '/records/shops/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
@@ -39,7 +39,7 @@ class HistoryController {
 
         router.get(
             '/records/items',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateQuery(HistorySchema.historyQueryParams),
             async (req, res) => {
                 const { p, pn} = req.query as unknown as HistorySchema.HistoryQueryParams
@@ -52,7 +52,7 @@ class HistoryController {
 
         router.post(
             '/records/items/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
@@ -63,7 +63,7 @@ class HistoryController {
 
         router.get(
             '/favorites/shops',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateQuery(HistorySchema.historyQueryParams),
             async (req, res) => {
                 const { p, pn} = req.query as unknown as HistorySchema.HistoryQueryParams
@@ -76,7 +76,7 @@ class HistoryController {
 
         router.post(
             '/favorites/shops/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
@@ -87,7 +87,7 @@ class HistoryController {
 
         router.get(
             '/favorites/items',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateQuery(HistorySchema.historyQueryParams),
             async (req, res) => {
                 const { p, pn} = req.query as unknown as HistorySchema.HistoryQueryParams
@@ -100,7 +100,7 @@ class HistoryController {
 
         router.post(
             '/favorites/items/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
@@ -111,7 +111,7 @@ class HistoryController {
 
         router.get(
             '/favorites/shops/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
@@ -122,7 +122,7 @@ class HistoryController {
 
         router.get(
             '/favorites/items/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
@@ -133,7 +133,7 @@ class HistoryController {
 
         router.delete(
             '/records/shops/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
@@ -144,7 +144,7 @@ class HistoryController {
 
         router.delete(
             '/records/items/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
@@ -155,7 +155,7 @@ class HistoryController {
 
         router.delete(
             '/favorites/shops/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams
@@ -166,7 +166,7 @@ class HistoryController {
 
         router.delete(
             '/favorites/items/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(HistorySchema.historyIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as HistorySchema.HistoryIdParams

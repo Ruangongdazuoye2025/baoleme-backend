@@ -72,7 +72,7 @@ describe('item service', () => {
             tx.item.delete.mockResolvedValue({ id: 'i1' } as any)
             return cb(tx)
         })
-        // ossService.removeObject 直接 mock 掉
+        // Mock ossService.removeObject directly
         jest.spyOn(mockOSSService, 'removeObject').mockResolvedValue(undefined)
         await expect(itemService.deleteItem('u1', 'i1')).resolves.not.toThrow()
     })

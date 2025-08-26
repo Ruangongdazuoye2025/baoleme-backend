@@ -18,7 +18,7 @@ export default  class MailService {
         await this.transporter.sendMail({
             from: `${process.env.APP_NAME} ${process.env.SMTP_USER}`,
             to: email,
-            subject: '验证邮箱',
+            subject: 'Email Verification',
             html: `<a href="${url}">${url}</a>`
         })
     }
@@ -28,7 +28,7 @@ export default  class MailService {
         await this.transporter.sendMail({
             from: `${process.env.APP_NAME} ${process.env.SMTP_USER}`,
             to: email,
-            subject: '验证邮箱',
+            subject: 'Email Verification',
             html: `<a href="${url}">${url}</a>`
         })
     }
@@ -38,7 +38,7 @@ export default  class MailService {
         await this.transporter.sendMail({
             from: `${process.env.APP_NAME} ${process.env.SMTP_USER}`,
             to: email,
-            subject: '重设密码',
+            subject: 'Reset Password',
             html: `<a href="${url}">${url}</a>`
         })
     }

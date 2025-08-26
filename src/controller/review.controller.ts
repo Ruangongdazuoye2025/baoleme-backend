@@ -1,5 +1,5 @@
 import { Router } from "express";
-import AuthService from "../service/auth.service";
+import AuthMiddleware from "../middleware/auth.middleware";
 import ReviewService from "../service/review.service";
 import { factoryInjection, factoryMethod, injected } from "../util/injection-decorators";
 import * as ReviewSchema from "../schema/review.schema";
@@ -9,14 +9,14 @@ import { HTTP_STATUS } from "../constants/app.constants";
 class ReviewController {
     @factoryMethod
     static reviewController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('reviewService') reviewService: ReviewService
     ) {
         const router = Router();
 
         router.post(
             '/comments',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateBody(ReviewSchema.createReview),
             async (req, res) => {
                 const request = req.body as ReviewSchema.CreateReview;
@@ -27,7 +27,7 @@ class ReviewController {
 
         router.get(
             '/comments/by-order/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ReviewSchema.orderIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as ReviewSchema.OrderIdParams;
@@ -39,7 +39,7 @@ class ReviewController {
         
         router.get(
             '/shop/:id/comments',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ReviewSchema.shopIdParams),
             validateQuery(ReviewSchema.getReviewQuery),
             async (req, res) => {
@@ -54,7 +54,7 @@ class ReviewController {
 
         router.patch(
             '/comments/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ReviewSchema.reviewIdParams),
             validateBody(ReviewSchema.updateReview),
             async (req, res) => {
@@ -70,7 +70,7 @@ class ReviewController {
 
         router.delete(
             '/comments/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ReviewSchema.reviewIdParams),
             async (req, res) => {
                 const { id } = req.params as unknown as ReviewSchema.ReviewIdParams;

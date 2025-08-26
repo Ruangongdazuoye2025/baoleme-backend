@@ -5,7 +5,6 @@ import { classInjection, injected } from '../util/injection-decorators'
 import TokenService from './token.service'
 import MailService from './mail.service'
 import { AUTH_CONSTANTS, DEFAULTS, HTTP_STATUS } from '../constants/app.constants'
-import passport from 'passport'
 import * as uuid from 'uuid'
 
 @classInjection
@@ -19,9 +18,6 @@ export default class AuthService {
 
     @injected
     private mailService!: MailService
-
-    @injected('passport')
-    private passport!: passport.Authenticator
 
     /**
      * Check if current user has permission to access/modify a resource
@@ -46,10 +42,6 @@ export default class AuthService {
         if (!hasRolePermission && !isSelf) {
             throw new ResponseError(403, 'Permission denied')
         }
-    }
-
-    requireAuth() {
-        return this.passport.authenticate('jwt', { session: false, failWithError: true })
     }
 
     private async getUserById(id: string, encryptedPassword?: string): Promise<User | null> {

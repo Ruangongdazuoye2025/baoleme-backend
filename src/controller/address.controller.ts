@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators';
-import AuthService from '../service/auth.service';
+import AuthMiddleware from '../middleware/auth.middleware';
 import AddressService from '../service/address.service';
 import { validateBody, validateParams } from '../middleware/validator.middleware';
 import { HTTP_STATUS } from '../constants/app.constants';
@@ -9,7 +9,7 @@ import * as AddressSchema from '../schema/address.schema';
 class AddressController {
     @factoryMethod
     static addressController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('addressService') addressService: AddressService
     ) {
         const router = Router();
@@ -17,7 +17,7 @@ class AddressController {
 
         router.post(
             API_BASE_PATH,
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateBody(AddressSchema.createAddressSchema),
             async (req: Request, res: Response) => {
                 const userId = req.user!.id;
@@ -29,7 +29,7 @@ class AddressController {
 
         router.get(
             API_BASE_PATH,
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             async (req: Request, res: Response) => {
                 const userId = req.user!.id;
                 const addresses = await addressService.getAddresses(userId);
@@ -39,7 +39,7 @@ class AddressController {
 
         router.get(
             `${API_BASE_PATH}/:id`,
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(AddressSchema.addressIdParamsSchema),
             async (req: Request, res: Response) => {
                 const userId = req.user!.id;
@@ -51,7 +51,7 @@ class AddressController {
 
         router.patch( 
             `${API_BASE_PATH}/:id`,
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(AddressSchema.addressIdParamsSchema),
             validateBody(AddressSchema.updateAddressSchema),
             async (req: Request, res: Response) => {
@@ -65,7 +65,7 @@ class AddressController {
 
         router.patch(
             `${API_BASE_PATH}/:id/pos`,
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(AddressSchema.addressIdParamsSchema),
             validateBody(AddressSchema.updateAddressOrderSchema),
             async (req: Request, res: Response) => {
@@ -79,7 +79,7 @@ class AddressController {
 
         router.delete(
             `${API_BASE_PATH}/:id`,
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(AddressSchema.addressIdParamsSchema),
             async (req: Request, res: Response) => {
                 const userId = req.user!.id;
@@ -89,10 +89,10 @@ class AddressController {
             }
         );
 
-        // 设为默认地址的专用路由
+        // Dedicated route to set as default address
         router.patch(
             `${API_BASE_PATH}/:id/default`,
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(AddressSchema.addressIdParamsSchema),
             async (req: Request, res: Response) => {
                 const userId = req.user!.id;

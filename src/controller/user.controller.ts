@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import * as UserSchema from '../schema/user.schema'
-import AuthService from '../service/auth.service'
+import AuthMiddleware from '../middleware/auth.middleware'
 import UserService from '../service/user.service'
 import { acceptMaximumSize, acceptMimeTypes, requireFile, validateBody, validateImage, validateParams } from '../middleware/validator.middleware'
 import upload from '../middleware/upload.middleware'
@@ -11,14 +11,14 @@ import { FILE_CONSTANTS, HTTP_STATUS } from '../constants/app.constants'
 class UserController {
     @factoryMethod
     static userController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('userService') userService: UserService,
     ) {
         const router = Router()
 
         router.get(
             '/user/:id',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(UserSchema.userProfileParams),
             async (req, res) => {
                 const { id } = req.params
@@ -43,7 +43,7 @@ class UserController {
 
         router.patch(
             '/user/:id/profile',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(UserSchema.userProfileParams),
             validateBody(UserSchema.updateUserProfile),
             async (req, res) => {
@@ -63,7 +63,7 @@ class UserController {
         router.patch(
             '/user/:id/avatar',
             upload.single('avatar'),
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(UserSchema.userProfileParams),
             requireFile(),
             acceptMimeTypes(/^image\//),
@@ -78,7 +78,7 @@ class UserController {
 
         router.delete(
             '/user/:id/avatar',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(UserSchema.userProfileParams),
             async (req, res) => {
                 const { id } = req.params

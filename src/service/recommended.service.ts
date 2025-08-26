@@ -196,14 +196,14 @@ export default class RecommendedService {
         pageSkip: number,
         pageLimit: number,
         maxDistance?: number, // d
-        maxTime?: number,     // t (暂未实现时间过滤)
+        maxTime?: number,     // t (time filtering not implemented yet)
         minIncome?: number    // m
     ) {
         return await this.prisma.$transaction(async tx => {
             const currentUser = await tx.user.findUnique({ where: { id: userId } })
             if (!currentUser) throw new ResponseError(403, 'Permission denied')
 
-            // TypedSQL 查询推荐订单，仿照 getItems/getShops
+            // TypedSQL query for recommended orders, similar to getItems/getShops
             const orders = await tx.$queryRawTyped(getOrders(
                 latitude,
                 longitude,
@@ -213,7 +213,7 @@ export default class RecommendedService {
                 pageSkip
             ));
 
-            // 格式化响应结构
+            // Format response structure
             return await Promise.all(
                 orders.map(async ({id}) => {
                     const order = await tx.order.findUnique({

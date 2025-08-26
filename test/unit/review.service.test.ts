@@ -93,7 +93,7 @@ describe('review service', () => {
         const user = { id: 'u1', role: 'USER' } as any
         const review = { id: 'r1', userId: 'u1', orderId: 'o1', user } as any
         const result = await reviewService.getReviewByOrderId('u1', 'o1')
-        // 由于 service 实现直接返回 tx.order.findUnique(...).review，mock 返回 review
+        // Since service implementation directly returns tx.order.findUnique(...).review, mock returns review
         expect(result).toEqual(review)
     })
 

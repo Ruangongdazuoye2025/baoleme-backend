@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { factoryInjection, factoryMethod, injected } from '../util/injection-decorators'
-import AuthService from '../service/auth.service'
+import AuthMiddleware from '../middleware/auth.middleware'
 import ItemService from '../service/item.service'
 import { validateBody, validateParams } from '../middleware/validator.middleware'
 import * as ItemCategorySchema from '../schema/item-category.schema'
@@ -9,14 +9,14 @@ import { HTTP_STATUS } from '../constants/app.constants'
 class ItemCategoryController {
     @factoryMethod
     static itemCategoryController(
-        @injected('authService') authService: AuthService,
+        @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('itemService') itemService: ItemService
     ) {
         const router = Router()
 
         router.get(
             '/shops/:shopId/item-categories',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemCategorySchema.shopIdParams),
             async (req, res) => {
                 const { shopId } = req.params
@@ -27,7 +27,7 @@ class ItemCategoryController {
 
         router.post(
             '/shops/:shopId/item-categories',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemCategorySchema.shopIdParams),
             validateBody(ItemCategorySchema.addUpdateItemCategory),
             async (req, res) => {
@@ -40,7 +40,7 @@ class ItemCategoryController {
 
         router.get(
             '/shops/:shopId/item-categories/:categoryId',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemCategorySchema.shopIdCategoryIdParams),
             async (req, res) => {
                 const { shopId, categoryId } = req.params
@@ -51,7 +51,7 @@ class ItemCategoryController {
 
         router.patch(
             '/shops/:shopId/item-categories/:categoryId',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemCategorySchema.shopIdCategoryIdParams),
             validateBody(ItemCategorySchema.addUpdateItemCategory),
             async (req, res) => {
@@ -64,7 +64,7 @@ class ItemCategoryController {
 
         router.patch(
             '/shops/:shopId/item-categories/:categoryId/pos',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemCategorySchema.shopIdCategoryIdParams),
             validateBody(ItemCategorySchema.updateItemCategoryPos),
             async (req, res) => {
@@ -77,7 +77,7 @@ class ItemCategoryController {
 
         router.delete(
             '/shops/:shopId/item-categories/:categoryId',
-            authService.requireAuth(),
+            authMiddleware.requireAuth(),
             validateParams(ItemCategorySchema.shopIdCategoryIdParams),
             async (req, res) => {
                 const { shopId, categoryId } = req.params
