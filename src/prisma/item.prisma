@@ -12,9 +12,12 @@ model Item {
   rating                Int      @default(0)
   sale                  Int      @default(0)
 
+  // 保持店铺服务内部的关联
   categories              ItemCategory[]
-  orderItems              OrderItem[]
-  cartItems               CartItem[]
-  itemHistory             ItemHistory[]
-  itemFavourite           ItemFavourite[]
+  
+  // 移除跨服务的关联，这些数据将通过服务调用获取
+  // orderItems              OrderItem[]
+  // cartItems               CartItem[]
+  // itemHistory             ItemHistory[]
+  // itemFavourite           ItemFavourite[]
 }

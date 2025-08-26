@@ -21,7 +21,7 @@ class ReviewController {
             async (req, res) => {
                 const request = req.body as ReviewSchema.CreateReview;
                 const review = await reviewService.createReview(req.user!.id, request);
-                res.status(HTTP_STATUS.CREATED).json(await reviewService.reviewDataToReviewInfo(review));
+                res.status(HTTP_STATUS.CREATED).json(await review);
             }
         )
 
@@ -32,7 +32,7 @@ class ReviewController {
             async (req, res) => {
                 const { id } = req.params as unknown as ReviewSchema.OrderIdParams;
                 const review = await reviewService.getReviewByOrderId(req.user!.id, id);
-                res.status(HTTP_STATUS.OK).json(await reviewService.reviewDataToReviewInfo(review));
+                res.status(HTTP_STATUS.OK).json(await review);
             }
 
         )
@@ -48,7 +48,7 @@ class ReviewController {
                 const pageSkip = parseInt(p) * parseInt(pn);
                 const pageLimit = parseInt(pn);
                 const reviews = await reviewService.getReviewsByShopId(id, pageSkip, pageLimit);
-                res.status(HTTP_STATUS.OK).json(await Promise.all(reviews.map(review => reviewService.reviewDataToReviewInfo(review))));
+                res.status(HTTP_STATUS.OK).json(await Promise.all(reviews.map(review => review)));
             }
         )
 

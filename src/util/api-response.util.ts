@@ -39,16 +39,14 @@ export class ApiResponse {
     static error(res: Response, message: string, status: number = HTTP_STATUS.BAD_REQUEST, details?: any) {
         const response: any = {
             success: false,
-            error: {
-                message
-            }
+            message,
         }
 
-        if (details && process.env.NODE_ENV !== 'production') {
-            response.error.details = details
+        if (details) {
+            response.details = details
         }
 
-        return res.status(status).json(response)
+        res.status(status).json(response)
     }
 
     /**

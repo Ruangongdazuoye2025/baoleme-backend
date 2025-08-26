@@ -3,6 +3,7 @@ import { classInjection, injected } from '../util/injection-decorators'
 import { ResponseError } from '../util/errors'
 import { HTTP_STATUS } from '../constants/app.constants'
 import ItemService from './item.service'
+import ShopService from './shop.service'
 
 const CART_ERROR_MESSAGES = {
     ITEM_NOT_FOUND_IN_CART: 'Item not found in cart',
@@ -18,21 +19,35 @@ export default class CartService {
     @injected
     private itemService!: ItemService
 
+    @injected
+    private shopService!: ShopService
+
     // Get cart item quantity
     async getCartItemQuantity(userId: string, shopId: string, itemId: string) {
-        const item = await this.prisma.cartItem.findUnique({
-            where: { customerId_itemId: { customerId: userId, itemId } },
-            include: { item: true }
+        const cartItem = await this.prisma.cartItem.findUnique({
+            where: { customerId_itemId: { customerId: userId, itemId } }
         })
-        if (!item || item.item.shopId !== shopId) throw new ResponseError(HTTP_STATUS.NOT_FOUND, CART_ERROR_MESSAGES.ITEM_NOT_FOUND_IN_CART)
-        return { quantity: item.quantity }
+        if (!cartItem) {
+            throw new ResponseError(HTTP_STATUS.NOT_FOUND, CART_ERROR_MESSAGES.ITEM_NOT_FOUND_IN_CART)
+        }
+        
+        // 通过服务调用验证商品属于指定店铺
+        const item = await this.itemService.getItem(userId, itemId)
+        if (!item || item.shopId !== shopId) {
+            throw new ResponseError(HTTP_STATUS.NOT_FOUND, CART_ERROR_MESSAGES.ITEM_NOT_FOUND_IN_CART)
+        }
+        
+        return { quantity: cartItem.quantity }
     }
 
     // Update cart item quantity
     async updateCartItemQuantity(userId: string, shopId: string, itemId: string, quantity: number) {
-        // Check if item belongs to this shop
-        const item = await this.prisma.item.findUnique({ where: { id: itemId } })
-        if (!item || item.shopId !== shopId) throw new ResponseError(HTTP_STATUS.NOT_FOUND, CART_ERROR_MESSAGES.ITEM_NOT_FOUND_IN_SHOP)
+        // 通过服务调用检查商品是否属于指定店铺
+        const item = await this.itemService.getItem(userId, itemId)
+        if (!item || item.shopId !== shopId) {
+            throw new ResponseError(HTTP_STATUS.NOT_FOUND, CART_ERROR_MESSAGES.ITEM_NOT_FOUND_IN_SHOP)
+        }
+        
         const key = { customerId_itemId: { customerId: userId, itemId } }
         if (quantity === 0) {
             const existing = await this.prisma.cartItem.findUnique({ where: key });
@@ -52,16 +67,31 @@ export default class CartService {
 
     // Get cart information
     async getCartInfo(userId: string, shopId: string) {
-        const shop = await this.prisma.shop.findUnique({ where: { id: shopId } })
-        if (!shop)
+        const shop = await this.shopService.getShop(shopId)
+        if (!shop) {
             throw new ResponseError(HTTP_STATUS.NOT_FOUND, CART_ERROR_MESSAGES.SHOP_NOT_FOUND)
-        const items = await this.prisma.cartItem.findMany({
-            where: { customerId: userId, item: { shopId } },
-            include: { item: true }
+        }
+        
+        // 获取用户的所有购物车商品
+        const allCartItems = await this.prisma.cartItem.findMany({
+            where: { customerId: userId }
         })
-        const total = items.reduce((sum, i) => sum + i.quantity * i.item.price, 0)
-        const totalWithoutPromotion = items.reduce((sum, i) => sum + i.quantity * i.item.priceWithoutPromotion, 0)
-        const settlable = items.length > 0 && items.every(i => i.item.available && !i.item.stockout) && total + shop.deliveryPrice >= shop.deliveryThreshold
+        
+        // 过滤出属于指定店铺的商品
+        const shopCartItems = []
+        for (const cartItem of allCartItems) {
+            const item = await this.itemService.getItem(userId, cartItem.itemId)
+            if (item && item.shopId === shopId) {
+                shopCartItems.push({ ...cartItem, item })
+            }
+        }
+        
+        const total = shopCartItems.reduce((sum, i) => sum + i.quantity * i.item.price, 0)
+        const totalWithoutPromotion = shopCartItems.reduce((sum, i) => sum + i.quantity * i.item.priceWithoutPromotion, 0)
+        const settlable = shopCartItems.length > 0 && 
+            shopCartItems.every(i => i.item.available && !i.item.stockout) && 
+            total + shop.deliveryPrice >= shop.deliveryThreshold
+        
         return {
             total,
             totalWithoutPromotion,
@@ -71,19 +101,52 @@ export default class CartService {
 
     // Get cart items list
     async getCartItems(userId: string, shopId: string) {
-        const items = await this.prisma.cartItem.findMany({
-            where: { customerId: userId, item: { shopId } },
-            include: { item: { include: { categories: true } } },
+        // 获取用户的所有购物车商品
+        const allCartItems = await this.prisma.cartItem.findMany({
+            where: { customerId: userId },
             orderBy: { createdAt: 'asc' }
         })
-        return await Promise.all(items.map(async i => ({
-            item: await this.itemService.itemDataToFullItemInfo(i.item),
-            quantity: i.quantity 
-        })))
+        
+        // 过滤出属于指定店铺的商品并获取完整信息
+        const shopCartItems = []
+        for (const cartItem of allCartItems) {
+            const item = await this.itemService.getItem(userId, cartItem.itemId)
+            if (item && item.shopId === shopId) {
+                const fullItemInfo = await this.itemService.itemDataToFullItemInfo(item)
+                shopCartItems.push({
+                    item: fullItemInfo,
+                    quantity: cartItem.quantity 
+                })
+            }
+        }
+        
+        return shopCartItems
     }
 
     // Clear cart
     async clearCart(userId: string, shopId: string) {
-        await this.prisma.cartItem.deleteMany({ where: { customerId: userId, item: { shopId } } })
+        // 获取用户的所有购物车商品
+        const allCartItems = await this.prisma.cartItem.findMany({
+            where: { customerId: userId }
+        })
+        
+        // 找出属于指定店铺的商品ID
+        const itemIdsToDelete = []
+        for (const cartItem of allCartItems) {
+            const item = await this.itemService.getItem(userId, cartItem.itemId)
+            if (item && item.shopId === shopId) {
+                itemIdsToDelete.push(cartItem.itemId)
+            }
+        }
+        
+        // 删除属于指定店铺的购物车商品
+        if (itemIdsToDelete.length > 0) {
+            await this.prisma.cartItem.deleteMany({ 
+                where: { 
+                    customerId: userId,
+                    itemId: { in: itemIdsToDelete }
+                } 
+            })
+        }
     }
 }

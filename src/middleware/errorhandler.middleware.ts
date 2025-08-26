@@ -1,27 +1,12 @@
-import { NextFunction, Request, Response } from 'express'
-import Joi from 'joi'
-import { HTTP_STATUS } from '../constants/app.constants'
+import { Request, Response, NextFunction } from 'express'
+import { ResponseError } from '../util/errors'
+import { ApiResponse } from '../util/api-response.util'
 
 export async function errorHandler(err: any, req: Request, res: Response, next: NextFunction) {
-    // Handle custom ResponseError
-    if (typeof err.status === 'number' && typeof err.message === 'string') {
-        res.status(err.status).json({ message: err.message })
-        return
+    if (err instanceof ResponseError) {
+        return ApiResponse.error(res, err.message, err.status)
     }
     
-    // Handle Joi validation errors
-    if (err.error instanceof Joi.ValidationError) {
-        if (process.env.NODE_ENV === 'production') {
-            res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Invalid request' })
-        } else {
-            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-                message: 'Invalid request', 
-                error: err.error 
-            })
-        }
-        return
-    }
-    
-    // Let Express handle other errors
-    next(err)
+    console.error('Unhandled error:', err)
+    return ApiResponse.error(res, 'Internal server error', 500)
 }

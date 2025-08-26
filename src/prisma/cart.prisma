@@ -1,7 +1,6 @@
 model CartItem {
-  customer   User   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  // 移除外键约束，仅保留ID引用
   customerId String @db.Uuid
-  item       Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
   itemId     String @db.Uuid
   createdAt  DateTime @default(now())
 

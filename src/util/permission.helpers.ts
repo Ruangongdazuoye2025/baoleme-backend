@@ -2,6 +2,12 @@ import { PrismaClient, UserRole } from '@prisma/client'
 import { ResponseError } from '../util/errors'
 import { ERROR_MESSAGES } from '../constants/error-messages.constants'
 import { HTTP_STATUS } from '../constants/app.constants'
+import { 
+    ShopPermissionResult, 
+    ShopPrivateInfoResult, 
+    ItemPermissionResult, 
+    OrderPermissionResult 
+} from '../types/common.types'
 
 /**
  * Common business logic helpers for shop-related operations
@@ -15,7 +21,7 @@ export class ShopPermissionHelper {
         prisma: PrismaClient,
         currentUserId: string,
         shopId: string
-    ): Promise<{ shop: any, currentUser: any }> {
+    ): Promise<ShopPermissionResult> {
         const [shop, currentUser] = await Promise.all([
             prisma.shop.findUnique({ where: { id: shopId } }),
             prisma.user.findUnique({ where: { id: currentUserId } })
@@ -44,7 +50,7 @@ export class ShopPermissionHelper {
         prisma: PrismaClient,
         currentUserId: string,
         shopId: string
-    ): Promise<{ shop: any, currentUser: any, canViewPrivateInfo: boolean }> {
+    ): Promise<ShopPrivateInfoResult> {
         const [shop, currentUser] = await Promise.all([
             prisma.shop.findUnique({ where: { id: shopId } }),
             prisma.user.findUnique({ where: { id: currentUserId } })
@@ -87,7 +93,7 @@ export class ItemPermissionHelper {
         prisma: PrismaClient,
         currentUserId: string,
         itemId: string
-    ): Promise<{ item: any, currentUser: any, canViewUnavailable: boolean }> {
+    ): Promise<ItemPermissionResult> {
         const [item, currentUser] = await Promise.all([
             prisma.item.findUnique({ 
                 where: { id: itemId },
@@ -127,11 +133,10 @@ export class OrderPermissionHelper {
         prisma: PrismaClient,
         currentUserId: string,
         orderId: string
-    ): Promise<{ order: any, currentUser: any, accessLevel: 'full' | 'omitted' }> {
+    ): Promise<OrderPermissionResult> {
         const [order, currentUser] = await Promise.all([
             prisma.order.findUnique({ 
-                where: { id: orderId },
-                include: { shop: true, customer: true, rider: true }
+                where: { id: orderId }
             }),
             prisma.user.findUnique({ where: { id: currentUserId } })
         ])
@@ -144,10 +149,13 @@ export class OrderPermissionHelper {
             throw new ResponseError(HTTP_STATUS.UNAUTHORIZED, ERROR_MESSAGES.UNAUTHORIZED)
         }
 
+        // Get shop information if needed
+        const shop = order.shopId ? await prisma.shop.findUnique({ where: { id: order.shopId } }) : null
+
         // Determine access level
         const isAdmin = currentUser.role === UserRole.ADMIN
         const isCustomer = currentUser.id === order.customerId
-        const isShopOwner = order.shop && currentUser.id === order.shop.ownerId
+        const isShopOwner = shop && currentUser.id === shop.ownerId
         const isRider = order.riderId && currentUser.id === order.riderId
 
         if (!isAdmin && !isCustomer && !isShopOwner && !isRider) {

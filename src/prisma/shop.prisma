@@ -1,6 +1,6 @@
 model Shop {
   id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  owner       User           @relation(fields: [ownerId], references: [id])
+  // 移除外键约束，仅保留ID引用
   ownerId     String         @db.Uuid
   name        String
   description String
@@ -27,10 +27,13 @@ model Shop {
   averagePrice      Int            @default(0)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
+  
+  // 保持店铺服务内部的关联
   items             Item[]
   itemCategories    ItemCategory[]
-  orders            Order[]
   
-  shopHistory         ShopHistory[]
-  shopFavourite       ShopFavourite[]
+  // 移除跨服务的关联，这些数据将通过服务调用获取
+  // orders            Order[]
+  // shopHistory         ShopHistory[]
+  // shopFavourite       ShopFavourite[]
 }

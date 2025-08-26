@@ -6,6 +6,7 @@ import * as ShopSchema from "../schema/shop.schema";
 import { acceptMaximumSize, acceptMimeTypes, validateBody, validateImage, validateParams, validateQuery } from "../middleware/validator.middleware";
 import UserService from "../service/user.service";
 import ShopService from "../service/shop.service";
+import ShopStatisticsService from "../service/shop-statistics.service";
 import upload from "../middleware/upload.middleware";
 import { FILE_CONSTANTS, HTTP_STATUS } from "../constants/app.constants";
 import { ResponseError } from "../util/errors";
@@ -16,6 +17,7 @@ class ShopController {
     static shopController(
         @injected('authMiddleware') authMiddleware: AuthMiddleware,
         @injected('shopService') shopService: ShopService,
+        @injected('shopStatisticsService') shopStatisticsService: ShopStatisticsService,
     ) {
         const router = Router()
 
@@ -146,7 +148,7 @@ class ShopController {
             async (req, res) => {
                 const { id } = req.params
                 const { s, t } = req.query as unknown as ShopSchema.ShopStatsQuery
-                const stats = await shopService.getShopStats(req.user!.id, id, s, t)
+                const stats = await shopStatisticsService.getShopStats(req.user!.id, id, s, t)
                 res.status(200).json(stats)
             }
         )
@@ -159,7 +161,7 @@ class ShopController {
             async (req, res) => {
                 const { id } = req.params
                 const { s, t, n } = req.query as unknown as ShopSchema.ShopTopItemsQuery
-                const result = await shopService.getShopTopItems(req.user!.id, id, s, t, n)
+                const result = await shopStatisticsService.getShopTopItems(req.user!.id, id, s, t, n)
                 res.status(200).json(result)
             }
         )

@@ -18,10 +18,5 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  addresses      Address[]
-  shops          Shop[]
-  customerOrders Order[]    @relation(name: "fk_customer")
-  riderOrders    Order[]    @relation(name: "fk_rider")
-  cartItems      CartItem[]
-  Review         Review[]
+  // 移除所有跨服务关联，保持用户服务的独立性
 }

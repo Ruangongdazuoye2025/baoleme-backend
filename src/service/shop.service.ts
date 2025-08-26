@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient, Shop, ShopCategory, User, UserRole } from "@prisma/client";
 import { classInjection, injected } from "../util/injection-decorators";
 import OSSService from "./oss.service";
+import UserService from "./user.service";
 import { CreateShop, UpdateShopProfile } from "../schema/shop.schema";
 import { ResponseError } from "../util/errors";
 import { BaseServiceUtils } from "./base.service";
@@ -15,6 +16,9 @@ export default class ShopService {
 
     @injected
     private ossService!: OSSService
+
+    @injected
+    private userService!: UserService
 
     private readonly ossContentType = FILE_CONSTANTS.IMAGE_CONTENT_TYPE
 
@@ -47,10 +51,11 @@ export default class ShopService {
 
     async getShopsByOwnerId(ownerId: string) {
         return await this.prisma.$transaction(async tx => {
-            await BaseServiceUtils.findByIdOrThrow(
-                () => tx.user.findUnique({ where: { id: ownerId } }),
-                'User not found'
-            )
+            // 通过 UserService 验证用户存在
+            const user = await this.userService.getUser(ownerId)
+            if (!user) {
+                throw new ResponseError(404, 'User not found')
+            }
             
             return await tx.shop.findMany({
                 include: { categories: true },
@@ -116,7 +121,11 @@ export default class ShopService {
     async createShop(userId: string, request: CreateShop) {
         const { name, description, categories, address, opened, openTimeStart, openTimeEnd, deliveryThreshold, deliveryPrice, maximumDistance } = request
         return await this.prisma.$transaction(async tx => {
-            await BaseServiceUtils.validateUserExists(this.prisma, userId)
+            // 通过 UserService 验证用户存在
+            const user = await this.userService.getUser(userId)
+            if (!user) {
+                throw new ResponseError(404, 'User not found')
+            }
             
             // Validate categories exist
             await Promise.all(request.categories.map(async id => {
@@ -168,7 +177,8 @@ export default class ShopService {
             if (!shop) {
                 throw new ResponseError(404, 'Shop not found')
             }
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -195,7 +205,8 @@ export default class ShopService {
             if (!shop) {
                 throw new ResponseError(404, 'Shop not found')
             }
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -243,7 +254,8 @@ export default class ShopService {
             if (!shop) {
                 throw new ResponseError(404, 'Shop not found')
             }
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -273,11 +285,13 @@ export default class ShopService {
             if (!shop) {
                 throw new ResponseError(404, 'Shop not found')
             }
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
             }
-            const owner = await tx.user.findUnique({ where: { id: ownerId } })
+            // 通过 UserService 验证新拥有者存在
+            const owner = await this.userService.getUser(ownerId)
             if (!owner) {
                 throw new ResponseError(404, 'User not found')
             }
@@ -303,7 +317,8 @@ export default class ShopService {
 
     async addShopCategory(currentUserId: string, name: string) {
         return await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || currentUser.role !== 'ADMIN') {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -331,7 +346,8 @@ export default class ShopService {
 
     async updateShopCategory(currentUserId: string, id: string, name: string) {
         return await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || currentUser.role !== 'ADMIN') {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -348,7 +364,8 @@ export default class ShopService {
 
     async updateShopCategoryPos(currentUserId: string, id: string, before: string | null) {
         await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || currentUser.role !== 'ADMIN') {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -407,7 +424,8 @@ export default class ShopService {
 
     async deleteShopCategory(currentUserId: string, id: string) {
         await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || currentUser.role !== 'ADMIN') {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -420,117 +438,20 @@ export default class ShopService {
     }
 
     /**
-     * Get shop statistics (sales, revenue)
-     * Uses database aggregation and grouping to avoid fetching all orders
+     * 更新店铺销量 - 供其他服务调用
      */
-    async getShopStats(currentUserId: string, shopId: string, start: string, end: string) {
-        return await this.prisma.$transaction(async tx => {
-            const shop = await tx.shop.findUnique({ where: { id: shopId } })
-            if (!shop) throw new ResponseError(404, 'Shop not found')
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
-            if (!currentUser || (currentUser.role !== 'ADMIN' && shop.ownerId !== currentUserId)) {
-                throw new ResponseError(403, 'Permission denied')
-            }
-            const s = new Date(start)
-            const t = new Date(end)
-            // Generate date list
-            const dayMap = new Map<string, { sales: number, incomes: number }>()
-            for (let d = new Date(s); d <= t; d.setDate(d.getDate() + 1)) {
-                const key = d.toISOString().slice(0, 10)
-                dayMap.set(key, { sales: 0, incomes: 0 })
-            }
-            // Aggregate daily revenue
-            const incomeAgg = await tx.order.groupBy({
-                by: ['finishedAt'],
-                where: {
-                    shopId,
-                    status: 'FINISHED',
-                    finishedAt: { gte: s, lte: t }
-                },
-                _sum: { total: true }
-            })
-            for (const row of incomeAgg) {
-                const day = row.finishedAt?.toISOString().slice(0, 10)
-                if (day && dayMap.has(day)) {
-                    dayMap.get(day)!.incomes += row._sum.total || 0
-                }
-            }
-            // Aggregate daily sales (through orderItem associated with order's finishedAt)
-            const salesAgg = await tx.orderItem.findMany({
-                where: {
-                    order: {
-                        shopId,
-                        status: 'FINISHED',
-                        finishedAt: { gte: s, lte: t }
-                    }
-                },
-                select: {
-                    quantity: true,
-                    order: { select: { finishedAt: true } }
-                }
-            })
-            for (const row of salesAgg) {
-                const day = row.order.finishedAt?.toISOString().slice(0, 10)
-                if (day && dayMap.has(day)) {
-                    dayMap.get(day)!.sales += row.quantity
-                }
-            }
-            return {
-                sales: Array.from(dayMap.values(), v => v.sales),
-                incomes: Array.from(dayMap.values(), v => v.incomes)
-            }
+    async updateShopSale(shopId: string, saleCount: number) {
+        return await this.prisma.shop.update({
+            where: { id: shopId },
+            data: { sale: saleCount }
         })
     }
 
-    /**
-     * Get shop best-selling items
-     * Uses database aggregation to avoid fetching all orders
-     */
-    async getShopTopItems(currentUserId: string, shopId: string, start: string, end: string, n?: number) {
-        return await this.prisma.$transaction(async tx => {
-            const shop = await tx.shop.findUnique({ where: { id: shopId } })
-            if (!shop) throw new ResponseError(404, 'Shop not found')
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
-            if (!currentUser || (currentUser.role !== 'ADMIN' && shop.ownerId !== currentUserId)) {
-                throw new ResponseError(403, 'Permission denied')
-            }
-            const s = new Date(start)
-            const t = new Date(end)
-            // Aggregate item sales and revenue
-            const agg = await tx.orderItem.groupBy({
-                by: ['itemId'],
-                _sum: { quantity: true, price: true },
-                where: {
-                    order: {
-                        shopId,
-                        status: 'FINISHED',
-                        finishedAt: { gte: s, lte: t }
-                    },
-                    itemId: { not: null }
-                }
-            })
-            // Query item information
-            const itemIds = agg.map(i => i.itemId!).filter(Boolean)
-            const items = await tx.item.findMany({ where: { id: { in: itemIds } } })
-            const itemInfoMap = new Map(items.map(i => [i.id, i]))
-            // Sort by sales and revenue
-            const bySale = agg
-                .map(i => ({ ...itemInfoMap.get(i.itemId!), queriedSale: i._sum.quantity || 0 }))
-                .sort((a, b) => b.queriedSale - a.queriedSale)
-                .slice(0, n || 10)
-            const byIncome = agg
-                .map(i => ({ ...itemInfoMap.get(i.itemId!), queriedIncome: i._sum.price || 0 }))
-                .sort((a, b) => b.queriedIncome - a.queriedIncome)
-                .slice(0, n || 10)
-            // Total sales and total revenue
-            const totalSale = agg.reduce((sum, i) => sum + (i._sum.quantity || 0), 0)
-            const totalIncome = agg.reduce((sum, i) => sum + (i._sum.price || 0), 0)
-            return {
-                totalSale,
-                totalIncome,
-                bySale,
-                byIncome
-            }
+    // 为 ReviewService 提供的接口
+    async updateShopRating(shopId: string, rating: number) {
+        return await this.prisma.shop.update({
+            where: { id: shopId },
+            data: { rating }
         })
     }
 

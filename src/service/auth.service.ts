@@ -5,6 +5,7 @@ import { classInjection, injected } from '../util/injection-decorators'
 import TokenService from './token.service'
 import MailService from './mail.service'
 import { AUTH_CONSTANTS, DEFAULTS, HTTP_STATUS } from '../constants/app.constants'
+import { UserRole } from '../types/service.interfaces'
 import * as uuid from 'uuid'
 
 @classInjection
@@ -25,7 +26,7 @@ export default class AuthService {
     private async checkUserPermission(
         currentUserId: string, 
         targetUserId: string, 
-        allowedRoles: any[] = ['ADMIN'],
+        allowedRoles: UserRole[] = ['ADMIN'],
         allowSelf = true
     ): Promise<void> {
         const currentUser = await this.prisma.user.findUnique({ 

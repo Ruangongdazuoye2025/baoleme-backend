@@ -5,6 +5,7 @@ import { CreateItem, UpdateItemProfile } from '../schema/item.schema'
 import { BaseServiceUtils } from "./base.service";
 import { FILE_CONSTANTS } from "../constants/app.constants";
 import OSSService from "./oss.service";
+import UserService from "./user.service";
 import sharp from "sharp";
 
 @classInjection
@@ -15,6 +16,9 @@ export default class ItemService {
 
     @injected
     private ossService!: OSSService
+
+    @injected
+    private userService!: UserService
 
     private readonly ossContentType = FILE_CONSTANTS.IMAGE_CONTENT_TYPE
 
@@ -42,15 +46,18 @@ export default class ItemService {
 
     async addItemCategory(currentUserId: string, shopId: string, name: string) {
         return await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({
-                where: { id: currentUserId },
-            })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
+            if (!currentUser) {
+                throw new ResponseError(401, 'Unauthorized')
+            }
+            
             const shop = await BaseServiceUtils.findByIdOrThrow(
                 () => tx.shop.findUnique({ where: { id: shopId } }),
                 'Shop not found'
             )
             
-            if (!currentUser || (currentUser.id !== shop.ownerId && currentUser.role !== UserRole.ADMIN)) {
+            if (currentUser.id !== shop.ownerId && currentUser.role !== UserRole.ADMIN) {
                 throw new ResponseError(403, 'Permission denied')
             }
             
@@ -92,16 +99,19 @@ export default class ItemService {
 
     async updateItemCategory(currentUserId: string, shopId: string, categoryId: string, name: string) {
         return await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({
-                where: { id: currentUserId },
-            })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
+            if (!currentUser) {
+                throw new ResponseError(401, 'Unauthorized')
+            }
+            
             const shop = await tx.shop.findUnique({
                 where: { id: shopId },
             })
             if (!shop) {
                 throw new ResponseError(404, 'Shop not found')
             }
-            if (!currentUser || (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN')) {
+            if (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN') {
                 throw new ResponseError(403, 'Permission denied')
             }
             const category = await tx.itemCategory.findUnique({
@@ -122,12 +132,17 @@ export default class ItemService {
 
     async updateItemCategoryPos(currentUserId: string, shopId: string, categoryId: string, before: string | null) {
         await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
+            if (!currentUser) {
+                throw new ResponseError(401, 'Unauthorized')
+            }
+            
             const shop = await tx.shop.findUnique({ where: { id: shopId } })
             if (!shop) {
                 throw new ResponseError(404, 'Shop not found')
             }
-            if (!currentUser || (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN')) {
+            if (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN') {
                 throw new ResponseError(403, 'Permission denied')
             }
             const category = await tx.itemCategory.findUnique({ 
@@ -194,16 +209,19 @@ export default class ItemService {
 
     async deleteItemCategory(currentUserId: string, shopId: string, categoryId: string) {
         return await this.prisma.$transaction(async tx => {
-            const currentUser = await tx.user.findUnique({
-                where: { id: currentUserId },
-            })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
+            if (!currentUser) {
+                throw new ResponseError(401, 'Unauthorized')
+            }
+            
             const shop = await tx.shop.findUnique({
                 where: { id: shopId },
             })
             if (!shop) {
                 throw new ResponseError(404, 'Shop not found')
             }
-            if (!currentUser || (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN')) {
+            if (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN') {
                 throw new ResponseError(403, 'Permission denied')
             }
             const category = await tx.itemCategory.findUnique({
@@ -270,9 +288,8 @@ export default class ItemService {
         if (!category) {
             throw new ResponseError(404, 'Item category not found in this shop');
         }
-        const user = await tx.user.findUnique({
-            where: { id: currentUserId }
-        })
+        // 通过 UserService 获取用户信息
+        const user = await this.userService.getUser(currentUserId)
         if (!user) {
             throw new ResponseError(401, 'Unauthorized');
         }
@@ -304,9 +321,8 @@ export default class ItemService {
             if (!shop) {
                 throw new ResponseError(404, 'Shop not found')
             }
-            const user = await tx.user.findUnique({
-                where: { id: currentUserId }
-            })
+            // 通过 UserService 获取用户信息
+            const user = await this.userService.getUser(currentUserId)
             if (!user) {
                 throw new ResponseError(401, 'Unauthorized');
             }
@@ -332,7 +348,8 @@ export default class ItemService {
         if (!item) {
             throw new ResponseError(404, 'Item not found')
         }
-        const currentUser = await this.prisma.user.findUnique({ where: { id: currentUserId } })
+        // 通过 UserService 获取用户信息
+        const currentUser = await this.userService.getUser(currentUserId)
         if (!currentUser) {
             throw new ResponseError(401, 'Unauthorized')
         }
@@ -347,9 +364,8 @@ export default class ItemService {
     async createItem(userId: string,shopId:string,request: CreateItem){
         const { name, description, available, stockout, price, priceWithoutPromotion, categories} = request
         return await this.prisma.$transaction(async tx => {
-            const user = await tx.user.findUnique({
-                where: { id: userId }
-            })
+            // 通过 UserService 获取用户信息
+            const user = await this.userService.getUser(userId)
             if (!user) {
                 throw new ResponseError(401, 'Unauthorized')
             }
@@ -405,7 +421,8 @@ export default class ItemService {
             if (!item) {
                 throw new ResponseError(404, 'Item not found')
             }
-            const currentUser = await tx.user.findUnique({ where: { id: userId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(userId)
             if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== item.shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -449,7 +466,8 @@ export default class ItemService {
             if (!item) {
                 throw new ResponseError(404, 'Item not found')
             }
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== item.shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -471,7 +489,8 @@ export default class ItemService {
             if (!item) {
                 throw new ResponseError(404, 'Item not found')
             }
-            const currentUser = await tx.user.findUnique({ where: { id: currentUserId } })
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
             if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== item.shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
             }
@@ -481,6 +500,35 @@ export default class ItemService {
                 this.ossService.removeObject(`items/${id}/cover.webp`),
                 this.ossService.removeObject(`items/${id}/cover-thumbnail.webp`),
             ])
+        })
+    }
+
+    /**
+     * 更新商品销量 - 供其他服务调用
+     */
+    async updateItemSale(itemId: string, saleCount: number) {
+        return await this.prisma.item.update({
+            where: { id: itemId },
+            data: { sale: saleCount }
+        })
+    }
+
+    /**
+     * 获取店铺的所有商品ID - 供其他服务调用
+     */
+    async getShopItemIds(shopId: string): Promise<string[]> {
+        const items = await this.prisma.item.findMany({
+            where: { shopId },
+            select: { id: true }
+        })
+        return items.map(item => item.id)
+    }
+
+    // 为 ReviewService 提供的接口
+    async updateItemRating(itemId: string, rating: number) {
+        return await this.prisma.item.update({
+            where: { id: itemId },
+            data: { rating }
         })
     }
 }
