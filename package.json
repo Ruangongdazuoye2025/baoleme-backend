@@ -1,0 +1,57 @@
+{
+  "name": "baoleme-backend-microservice",
+  "version": "1.0.0",
+  "description": "My Moleculer-based microservices project",
+  "scripts": {
+    "dev": "npx tsx ./node_modules/moleculer/bin/moleculer-runner.js --env --config moleculer.config.ts --hot --repl services/**/*.service.ts",
+    "start": "moleculer-runner --env --config out/moleculer.config.js",
+    "cli": "moleculer connect NATS",
+    "ci": "jest --watch",
+    "test": "jest --coverage",
+    "dc:up": "docker-compose up --build -d",
+    "dc:logs": "docker-compose logs -f",
+    "dc:down": "docker-compose down"
+  },
+  "keywords": [
+    "microservices",
+    "moleculer"
+  ],
+  "author": "",
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/nodemailer": "^7.0.1",
+    "jest": "^27.5.1",
+    "jest-cli": "^27.5.1",
+    "moleculer-repl": "^0.7.3",
+    "tsx": "^4.20.5"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.14.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.2.1",
+    "joi": "^18.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "minio": "^8.0.5",
+    "moleculer": "^0.14.26",
+    "moleculer-web": "^0.10.4",
+    "nats": "^2.7.1",
+    "nodemailer": "^7.0.5",
+    "ramda-adjunct": "^5.1.0",
+    "uuid": "^11.1.0"
+  },
+  "engines": {
+    "node": ">= 16.x.x"
+  },
+  "jest": {
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "rootDir": "./services",
+    "roots": [
+      "../test"
+    ]
+  },
+  "prisma": {
+    "schema": "./prisma"
+  }
+}

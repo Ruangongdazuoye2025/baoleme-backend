@@ -1,0 +1,21 @@
+enum UserRole {
+  USER
+  MERCHANT
+  RIDER
+  ADMIN
+}
+
+model User {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email            String   @unique
+  password         String
+  role             UserRole @default(USER)
+  name             String?
+  description      String?
+  emailVisible     Boolean  @default(true)
+  createdAtVisible Boolean  @default(true)
+  isVerified       Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+}
