@@ -1,0 +1,39 @@
+model Shop {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // 移除外键约束，仅保留ID引用
+  ownerId     String         @db.Uuid
+  name        String
+  description String
+  categories  ShopCategory[]
+
+  addressLatitude  Float
+  addressLongitude Float
+  addressProvince  String
+  addressCity      String
+  addressDistrict  String
+  addressAddress   String
+  addressName      String
+  addressTel       String
+
+  verified          Boolean        @default(false)
+  opened            Boolean        @default(false)
+  openTimeStart     Int
+  openTimeEnd       Int
+  deliveryThreshold Int
+  deliveryPrice     Int
+  maximumDistance   Float
+  rating            Int            @default(0)
+  sale              Int            @default(0)
+  averagePrice      Int            @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  // 保持店铺服务内部的关联
+  items             Item[]
+  itemCategories    ItemCategory[]
+  
+  // 移除跨服务的关联，这些数据将通过服务调用获取
+  // orders            Order[]
+  // shopHistory         ShopHistory[]
+  // shopFavourite       ShopFavourite[]
+}
