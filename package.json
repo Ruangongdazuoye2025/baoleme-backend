@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "My Moleculer-based microservices project",
   "scripts": {
+    "build": "tsc -p .",
     "dev": "npx tsx ./node_modules/moleculer/bin/moleculer-runner.js --env --config moleculer.config.ts --hot --repl services/**/*.service.ts",
     "start": "moleculer-runner --env --config out/moleculer.config.js",
     "cli": "moleculer connect NATS",

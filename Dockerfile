@@ -1,4 +1,4 @@
-FROM node:16-alpine
+FROM node:22.16.0
 
 ENV NODE_ENV=production
 
@@ -11,4 +11,6 @@ RUN npm install --production
 
 COPY . .
 
-CMD ["npm", "start"]
+EXPOSE 3000
+
+CMD ["sh", "scripts/start-services.sh"]

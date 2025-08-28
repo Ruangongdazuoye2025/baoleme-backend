@@ -5,13 +5,15 @@ services:
   api:
     build:
       context: .
-    image: baoleme-backend-microservice
+    image: baoleme-backend-services:latest
+    container_name: baoleme-backend-microservice-api
     env_file: docker-compose.env
     environment:
       SERVICES: api
       PORT: 3000
     depends_on:
       - nats
+      - postgres
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api-gw.rule=PathPrefix(`/`)"
@@ -19,35 +21,106 @@ services:
     networks:
       - internal
 
-  greeter:
+  auth:
     build:
       context: .
-    image: baoleme-backend-microservice
+    image: baoleme-backend-services:latest
+    container_name: baoleme-backend-microservice-auth
     env_file: docker-compose.env
     environment:
-      SERVICES: greeter
+      SERVICES: auth
+    depends_on:
+      - nats
+      - postgres
+    networks:
+      - internal
+
+  mail:
+    build:
+      context: .
+    image: baoleme-backend-services:latest
+    container_name: baoleme-backend-microservice-mail
+    env_file: docker-compose.env
+    environment:
+      SERVICES: mail
     depends_on:
       - nats
     networks:
       - internal
 
-  products:
+  oss:
     build:
       context: .
-    image: baoleme-backend-microservice
+    image: baoleme-backend-services:latest
+    container_name: baoleme-backend-microservice-oss
     env_file: docker-compose.env
     environment:
-      SERVICES: products
+      SERVICES: oss
     depends_on:
-      - mongo
       - nats
     networks:
       - internal
+  
+  address:
+    build:
+      context: .
+    image: baoleme-backend-services:latest
+    container_name: baoleme-backend-microservice-address
+    env_file: docker-compose.env
+    environment:
+      SERVICES: address
+    depends_on:
+      - nats
+      - postgres
+    networks:
+      - internal
 
-  mongo:
-    image: mongo:4
+  # nginx-proxy-manager:
+  #   image: jc21/nginx-proxy-manager:latest
+  #   container_name: nginx-proxy-manager-services
+  #   restart: always
+  #   ports:
+  #     - 37002:81
+  #     - 80:80
+  #     - 443:443
+  #   environment:
+  #     DB_SQLITE_FILE: /data/database.sqlite
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    command: server --console-address ':9001' /data
+    restart: always
+    ports:
+      - 9001:9001
+      - 9000:9000
+    environment:
+      - MINIO_ROOT_USER=31b4134289454f089eb1554a81c6bbef
+      - MINIO_ROOT_PASSWORD=fc59412342fa488991ff65e94fbea656
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:17
+    container_name: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=postgres
     volumes:
-      - data:/data/db
+      - /home/ci/data/postgres/data:/var/lib/postgresql/data
+      - /home/ci/server/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'postgres', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - internal
 
@@ -59,7 +132,7 @@ services:
   traefik:
     image: traefik:v2.4
     command:
-      - "--api.insecure=true" # Don't do that in production!
+      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
     ports:
@@ -73,6 +146,6 @@ services:
 
 networks:
   internal:
-
+  default:
 volumes:
   data:
