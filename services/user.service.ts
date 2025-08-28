@@ -24,7 +24,7 @@ const updateUserProfileSchema = Joi.object({
 });
 
 interface UpdateUserProfileRequest {
-    id: string;
+    id?: string;
     name?: string;
     description?: string;
     role?: 'customer' | 'rider' | 'merchant' | 'admin';
