@@ -1,0 +1,10 @@
+model CartItem {
+  // 移除外键约束，仅保留ID引用
+  customerId String @db.Uuid
+  itemId     String @db.Uuid
+  createdAt  DateTime @default(now())
+
+  quantity Int
+
+  @@unique([customerId, itemId])
+}

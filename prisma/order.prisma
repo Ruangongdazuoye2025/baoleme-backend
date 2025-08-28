@@ -1,0 +1,62 @@
+enum OrderStatus {
+  UNPAID
+  PREPARING
+  PREPARED
+  DELIVERING
+  FINISHED
+  CANCELED
+}
+
+model OrderItem {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order    Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId  String  @db.Uuid
+  // 移除对商品的外键约束，商品可能被删除
+  itemId   String? @db.Uuid
+  name     String
+  quantity Int
+  price    Int
+}
+
+model Order {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status            OrderStatus @default(UNPAID)
+  createdAt         DateTime    @default(now())
+  paidAt            DateTime?
+  preparedAt        DateTime?
+  deliveredAt       DateTime?
+  finishedAt        DateTime?
+  canceledAt        DateTime?
+  // 移除所有外键约束，仅保留ID引用
+  customerId        String?     @db.Uuid
+  shopId            String?     @db.Uuid
+  riderId           String?     @db.Uuid
+  deliveryFee       Int
+  total             Int
+  note              String
+  deliveryLatitude  Float?
+  deliveryLongitude Float?
+
+  items OrderItem[]
+
+  shopLatitude  Float
+  shopLongitude Float
+  shopProvince  String
+  shopCity      String
+  shopDistrict  String
+  shopAddress   String
+  shopName      String
+  shopTel       String
+
+  customerLatitude  Float
+  customerLongitude Float
+  customerProvince  String
+  customerCity      String
+  customerDistrict  String
+  customerAddress   String
+  customerName      String
+  customerTel       String
+
+  // 移除对评论的关联，通过服务调用获取
+  // review Review?
+}
