@@ -15,6 +15,7 @@ interface UserProfileParams {
 }
 
 const updateUserProfileSchema = Joi.object({
+    id: Joi.string().uuid().required(),
     name: Joi.string().optional(),
     description: Joi.string().allow('').optional(),
     role: Joi.string().valid('customer', 'rider').optional(),
@@ -23,6 +24,7 @@ const updateUserProfileSchema = Joi.object({
 });
 
 interface UpdateUserProfileRequest {
+    id: string;
     name?: string;
     description?: string;
     role?: 'customer' | 'rider' | 'merchant' | 'admin';
@@ -90,10 +92,7 @@ const UserService: ServiceSchema = {
          * Update user profile.
          */
         updateProfile: {
-            params: {
-                id: userProfileParamsSchema.extract('id'),
-                ...updateUserProfileSchema.describe().keys
-            } as any,
+            params: updateUserProfileSchema as any,
             async handler(ctx: Context<UserProfileParams & UpdateUserProfileRequest, { currentUserId: string }>) {
                 const { id, ...data } = ctx.params;
                 const { currentUserId } = ctx.meta;
