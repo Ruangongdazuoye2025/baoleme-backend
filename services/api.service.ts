@@ -26,6 +26,12 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "POST /auth/reset-password": "auth.resetPassword",
                     "POST /auth/update-email": "auth.updateEmail",
                     "POST /auth/update-password": "auth.updatePassword",
+                    "POST /addresses": "address.addAddress",
+                    "GET  /addresses": "address.getAddresses",
+                    "GET  /addresses/:id": "address.getAddressById",
+                    "PATCH  /addresses/:id": "address.updateAddress",
+                    "PATCH /addresses/:id/pos": "address.updateAddressOrder",
+                    "DELETE /addresses/:id": "address.deleteAddress",
                 },
                 onAfterCall(ctx, route, req, res, data) {
                     if (!data) {
