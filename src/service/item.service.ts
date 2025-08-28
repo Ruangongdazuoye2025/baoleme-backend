@@ -7,10 +7,10 @@ import { FILE_CONSTANTS } from "../constants/app.constants";
 import OSSService from "./oss.service";
 import UserService from "./user.service";
 import sharp from "sharp";
+import ShopService from "./shop.service";
 
 @classInjection
 export default class ItemService {
-
     @injected
     protected declare prisma: PrismaClient
 
@@ -20,6 +20,9 @@ export default class ItemService {
     @injected
     private userService!: UserService
 
+    @injected
+    private shopService!: ShopService
+
     private readonly ossContentType = FILE_CONSTANTS.IMAGE_CONTENT_TYPE
 
     itemCategoryDataToItemCategoryInfo(category: ItemCategory) {
@@ -27,216 +30,6 @@ export default class ItemService {
             id: category.id,
             name: category.name,
         }
-    }
-
-    async getItemCategories(shopId: string) {
-        const shop = await BaseServiceUtils.findByIdOrThrow(
-            () => this.prisma.shop.findUnique({
-                where: { id: shopId },
-                include: {
-                    itemCategories: {
-                        orderBy: { order: 'asc' },
-                    },
-                },
-            }),
-            'Shop not found'
-        )
-        return shop.itemCategories
-    }
-
-    async addItemCategory(currentUserId: string, shopId: string, name: string) {
-        return await this.prisma.$transaction(async tx => {
-            // 通过 UserService 获取用户信息
-            const currentUser = await this.userService.getUser(currentUserId)
-            if (!currentUser) {
-                throw new ResponseError(401, 'Unauthorized')
-            }
-            
-            const shop = await BaseServiceUtils.findByIdOrThrow(
-                () => tx.shop.findUnique({ where: { id: shopId } }),
-                'Shop not found'
-            )
-            
-            if (currentUser.id !== shop.ownerId && currentUser.role !== UserRole.ADMIN) {
-                throw new ResponseError(403, 'Permission denied')
-            }
-            
-            const maxOrder = (await tx.itemCategory.aggregate({
-                where: { shopId },
-                _max: { order: true },
-            }))._max.order ?? -1
-            
-            return await tx.itemCategory.create({
-                data: {
-                    name,
-                    shopId,
-                    order: maxOrder + 1,
-                },
-            })
-        })
-    }
-
-    async getItemCategory(shopId: string, categoryId: string) {
-        return await this.prisma.$transaction(async tx => {
-            const shop = await tx.shop.findUnique({
-                where: { id: shopId },
-            })
-            if (!shop) {
-                throw new ResponseError(404, 'Shop not found')
-            }
-            const category = await tx.itemCategory.findUnique({
-                where: {
-                    id: categoryId,
-                    shopId: shop.id,
-                },
-            })
-            if (!category) {
-                throw new ResponseError(404, 'Item category not found')
-            }
-            return category
-        })
-    }
-
-    async updateItemCategory(currentUserId: string, shopId: string, categoryId: string, name: string) {
-        return await this.prisma.$transaction(async tx => {
-            // 通过 UserService 获取用户信息
-            const currentUser = await this.userService.getUser(currentUserId)
-            if (!currentUser) {
-                throw new ResponseError(401, 'Unauthorized')
-            }
-            
-            const shop = await tx.shop.findUnique({
-                where: { id: shopId },
-            })
-            if (!shop) {
-                throw new ResponseError(404, 'Shop not found')
-            }
-            if (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                throw new ResponseError(403, 'Permission denied')
-            }
-            const category = await tx.itemCategory.findUnique({
-                where: {
-                    id: categoryId,
-                    shopId: shop.id,
-                },
-            })
-            if (!category) {
-                throw new ResponseError(404, 'Item category not found')
-            }
-            return await tx.itemCategory.update({
-                where: { id: categoryId },
-                data: { name },
-            })
-        })
-    }
-
-    async updateItemCategoryPos(currentUserId: string, shopId: string, categoryId: string, before: string | null) {
-        await this.prisma.$transaction(async tx => {
-            // 通过 UserService 获取用户信息
-            const currentUser = await this.userService.getUser(currentUserId)
-            if (!currentUser) {
-                throw new ResponseError(401, 'Unauthorized')
-            }
-            
-            const shop = await tx.shop.findUnique({ where: { id: shopId } })
-            if (!shop) {
-                throw new ResponseError(404, 'Shop not found')
-            }
-            if (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                throw new ResponseError(403, 'Permission denied')
-            }
-            const category = await tx.itemCategory.findUnique({ 
-                where: {
-                    id: categoryId,
-                    shopId: shop.id,
-                } 
-            })
-            if (!category) {
-                throw new ResponseError(404, 'Item category not found')
-            }
-            if (before) {
-                const beforeCategory = await tx.itemCategory.findUnique({ where: { id: before } })
-                if (!beforeCategory || beforeCategory.shopId !== shopId) {
-                    throw new ResponseError(404, 'Item category not found')
-                }
-                if (category.order === beforeCategory.order) {
-                    return
-                }
-                if (category.order < beforeCategory.order) {
-                    await tx.itemCategory.updateMany({
-                        where: {
-                            shopId,
-                            order: { gt: category.order, lt: beforeCategory.order }
-                        },
-                        data: { order: { decrement: 1 } }
-                    })
-                    await tx.itemCategory.update({
-                        where: { id: categoryId },
-                        data: { order: beforeCategory.order - 1 }
-                    })
-                } else {
-                    await tx.itemCategory.updateMany({
-                        where: {
-                            shopId,
-                            order: { lt: category.order, gte: beforeCategory.order }
-                        },
-                        data: { order: { increment: 1 } }
-                    })
-                    await tx.itemCategory.update({
-                        where: { id: categoryId },
-                        data: { order: beforeCategory.order }
-                    })
-                }
-            } else {
-                const maxOrder = (await tx.itemCategory.aggregate({
-                    where: { shopId },
-                    _max: { order: true }
-                }))._max.order!
-                await tx.itemCategory.updateMany({
-                    where: {
-                        shopId,
-                        order: { gt: category.order }
-                    },
-                    data: { order: { decrement: 1 } }
-                })
-                await tx.itemCategory.update({
-                    where: { id: categoryId },
-                    data: { order: maxOrder }
-                })
-            }
-        })
-    }
-
-    async deleteItemCategory(currentUserId: string, shopId: string, categoryId: string) {
-        return await this.prisma.$transaction(async tx => {
-            // 通过 UserService 获取用户信息
-            const currentUser = await this.userService.getUser(currentUserId)
-            if (!currentUser) {
-                throw new ResponseError(401, 'Unauthorized')
-            }
-            
-            const shop = await tx.shop.findUnique({
-                where: { id: shopId },
-            })
-            if (!shop) {
-                throw new ResponseError(404, 'Shop not found')
-            }
-            if (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                throw new ResponseError(403, 'Permission denied')
-            }
-            const category = await tx.itemCategory.findUnique({
-                where: {
-                    id: categoryId,
-                    shopId: shop.id,
-                },
-            })
-            if (!category) {
-                throw new ResponseError(404, 'Item category not found')
-            }
-            await tx.itemCategory.delete({
-                where: { id: categoryId },
-            })
-        })
     }
 
     async getItemImageLinks(itemId: string) {
@@ -249,7 +42,7 @@ export default class ItemService {
         }
     }
 
-    async itemDataToFullItemInfo(item: Prisma.ItemGetPayload<{ include: { categories: true } }>) {
+    async itemDataToFullItemInfo(item: Prisma.ItemGetPayload<{ include: { itemItemCategories: true } }>) {
         return {
             id: item.id,
             shopId: item.shopId,
@@ -259,7 +52,7 @@ export default class ItemService {
         }
     }
 
-    itemDataToItemProfile(item: Prisma.ItemGetPayload<{ include: { categories: true } }>) {
+    itemDataToItemProfile(item: Prisma.ItemGetPayload<{ include: { itemItemCategories: true } }>) {
         return {
             name: item.name,
             description: item.description,
@@ -267,132 +60,74 @@ export default class ItemService {
             stockout: item.stockout,
             price: item.price,
             priceWithoutPromotion: item.priceWithoutPromotion,
-            categories: item.categories.map(category => category.id),
-            rating:item.rating,
-            sale:item.sale,
+            categories: item.itemItemCategories.map(p => p.categoryId),
+            rating: item.rating,
+            sale: item.sale,
         }
     }
 
     async getShopCategoryItems(currentUserId:string,shopId:string,categoryId:string,pageSkip:number,pageLimit:number){
         return await this.prisma.$transaction(async tx => {
-            const shop = await tx.shop.findUnique({ where: { id: shopId } });
-            if (!shop) {
-                throw new ResponseError(404, 'Shop not found');
-            }
-            const category = await tx.itemCategory.findUnique({
-                where: {
-                id: categoryId,
-                shopId: shopId
-            }
-        });
-        if (!category) {
-            throw new ResponseError(404, 'Item category not found in this shop');
-        }
-        // 通过 UserService 获取用户信息
-        const user = await this.userService.getUser(currentUserId)
-        if (!user) {
-            throw new ResponseError(401, 'Unauthorized');
-        }
-        const onlyAvailable = user.role !== 'ADMIN' && user.id !== shop.ownerId;
-
-        return await tx.item.findMany({
-            where: {
-                shopId: shopId,
-                categories: {
-                    some: {
-                        id: categoryId
-                    }
-                },
-                available: onlyAvailable ? true : undefined
-            },
-            include: {
-                categories: true,
-                shop: true
-            },
-            skip: pageSkip,
-            take: pageLimit,
-            orderBy: { createdAt: 'desc' }
-        });
-    });
-    }
-    async getItems(currentUserId:string,shopId:string,pageSkip:number,pageLimit:number){
-        return await this.prisma.$transaction(async tx => {
-            const shop = await tx.shop.findUnique({ where: { id: shopId } })
-            if (!shop) {
-                throw new ResponseError(404, 'Shop not found')
-            }
-            // 通过 UserService 获取用户信息
             const user = await this.userService.getUser(currentUserId)
             if (!user) {
                 throw new ResponseError(401, 'Unauthorized');
             }
-            const onlyAvailable = user.role !== 'ADMIN' && user.id !== shop.ownerId;
             return await tx.item.findMany({
-                include:{categories: true, shop: true},
+                where: {
+                    shopId: shopId,
+                    itemItemCategories: { some: { categoryId: categoryId } }
+                },
+                skip: pageSkip,
+                take: pageLimit,
+                orderBy: { createdAt: 'desc' }
+            });
+        });
+    }
+
+    async getItems(currentUserId:string,shopId:string,pageSkip:number,pageLimit:number){
+        return await this.prisma.$transaction(async tx => {
+            const user = await this.userService.getUser(currentUserId)
+            if (!user) {
+                throw new ResponseError(401, 'Unauthorized');
+            }
+
+            return await tx.item.findMany({
                 where: { 
                     shopId: shopId,
-                    available: onlyAvailable ? true : undefined
                 },
                 skip: pageSkip,
                 take: pageLimit,
                 orderBy: { createdAt: 'desc' }
             })
-        })        
+        })
     }
 
     async getItem(currentUserId:string,id: string) {
         const item = await this.prisma.item.findUnique({
             where: { id },
-            include: { categories: true, shop: true }
         })
         if (!item) {
             throw new ResponseError(404, 'Item not found')
         }
-        // 通过 UserService 获取用户信息
         const currentUser = await this.userService.getUser(currentUserId)
         if (!currentUser) {
             throw new ResponseError(401, 'Unauthorized')
         }
-        const onlyAvailable = currentUser.role !== 'ADMIN' && currentUser.id !== item.shop.ownerId;
+        const shop = await this.shopService.getShop(item.shopId)
+        const onlyAvailable = currentUser.role !== 'ADMIN' && currentUser.id !== shop.ownerId;
         if (onlyAvailable && !item.available) {
             throw new ResponseError(404, 'Item not found')
         }
         return item
     }
 
-
     async createItem(userId: string,shopId:string,request: CreateItem){
         const { name, description, available, stockout, price, priceWithoutPromotion, categories} = request
         return await this.prisma.$transaction(async tx => {
-            // 通过 UserService 获取用户信息
             const user = await this.userService.getUser(userId)
             if (!user) {
                 throw new ResponseError(401, 'Unauthorized')
             }
-            
-            const shop = await tx.shop.findUnique({
-                where: { id: shopId }
-            })
-            
-            if (!shop) {
-                throw new ResponseError(404, 'Shop not found')
-            }
-            
-            if (shop.ownerId !== userId) {
-                throw new ResponseError(403, 'Permission denied')
-            }
-            
-            await Promise.all(request.categories.map(async id => {
-                const category = await tx.itemCategory.findUnique({ 
-                    where: { 
-                        id,
-                        shopId
-                    } 
-                })
-                if (!category) {
-                    throw new ResponseError(404, 'Item category not found')
-                }
-            }))
             
             const item = await tx.item.create({
                 data: {
@@ -403,9 +138,10 @@ export default class ItemService {
                     price,
                     priceWithoutPromotion,
                     shopId,
-                    categories: { connect: categories.map(id => ({ id })) }
+                    itemItemCategories: {
+                        create: categories.map(id => ({ categoryId: id }))
+                    }
                 },
-                include: { categories: true, shop: true }
             })
             return item
         })
@@ -415,30 +151,15 @@ export default class ItemService {
         const { name, description, available, stockout, price, priceWithoutPromotion, categories } = request
         return await this.prisma.$transaction(async tx => {
             const item = await tx.item.findUnique({ 
-                where: { id },
-                include: { shop: true }
+                where: { id }
             })
             if (!item) {
                 throw new ResponseError(404, 'Item not found')
             }
-            // 通过 UserService 获取用户信息
             const currentUser = await this.userService.getUser(userId)
-            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== item.shop.ownerId)) {
+            const shop = await this.shopService.getShop(item.shopId)
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
-            }
-            
-            if (categories) {
-                await Promise.all(categories.map(async id => {
-                    const category = await tx.itemCategory.findUnique({ 
-                        where: { 
-                            id,
-                            shopId: item.shopId
-                        } 
-                    })
-                    if (!category) {
-                        throw new ResponseError(404, 'Item category not found')
-                    }
-                }))
             }
 
             const updatedItem = await tx.item.update({
@@ -450,10 +171,14 @@ export default class ItemService {
                     stockout,
                     price,
                     priceWithoutPromotion,
-                    categories: categories ? { set: categories.map(id => ({ id })) } : undefined
+                    itemItemCategories: {
+                        deleteMany: {},
+                        create: categories?.map(categoryId => ({ 
+                            categoryId 
+                        }))
+                    }
                 },
-                include: { categories: true, shop: true }
-            })
+            });
             return updatedItem
         })
     }
@@ -461,14 +186,13 @@ export default class ItemService {
         await this.prisma.$transaction(async tx => {
             const item = await tx.item.findUnique({ 
                 where: { id },
-                include: { shop: true }
             })
             if (!item) {
                 throw new ResponseError(404, 'Item not found')
             }
-            // 通过 UserService 获取用户信息
             const currentUser = await this.userService.getUser(currentUserId)
-            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== item.shop.ownerId)) {
+            const shop = await this.shopService.getShop(item.shopId)
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
             }
         })
@@ -484,17 +208,16 @@ export default class ItemService {
         await this.prisma.$transaction(async tx => {
             const item = await tx.item.findUnique({ 
                 where: { id },
-                include: { shop: true }
             })
             if (!item) {
                 throw new ResponseError(404, 'Item not found')
             }
             // 通过 UserService 获取用户信息
             const currentUser = await this.userService.getUser(currentUserId)
-            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== item.shop.ownerId)) {
+            const shop = await this.shopService.getShop(item.shopId)
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.id !== shop.ownerId)) {
                 throw new ResponseError(403, 'Permission denied')
             }
-            
             await tx.item.delete({ where: { id } })
             await Promise.all([
                 this.ossService.removeObject(`items/${id}/cover.webp`),
@@ -503,9 +226,6 @@ export default class ItemService {
         })
     }
 
-    /**
-     * 更新商品销量 - 供其他服务调用
-     */
     async updateItemSale(itemId: string, saleCount: number) {
         return await this.prisma.item.update({
             where: { id: itemId },
@@ -513,9 +233,6 @@ export default class ItemService {
         })
     }
 
-    /**
-     * 获取店铺的所有商品ID - 供其他服务调用
-     */
     async getShopItemIds(shopId: string): Promise<string[]> {
         const items = await this.prisma.item.findMany({
             where: { shopId },
@@ -524,7 +241,6 @@ export default class ItemService {
         return items.map(item => item.id)
     }
 
-    // 为 ReviewService 提供的接口
     async updateItemRating(itemId: string, rating: number) {
         return await this.prisma.item.update({
             where: { id: itemId },

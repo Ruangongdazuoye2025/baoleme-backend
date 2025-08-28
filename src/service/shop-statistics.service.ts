@@ -3,6 +3,7 @@ import { classInjection, injected } from "../util/injection-decorators";
 import { ResponseError } from "../util/errors";
 import UserService from "./user.service";
 import OrderService from "./order.service";
+import ItemService from "./item.service";
 
 @classInjection
 export default class ShopStatisticsService {
@@ -15,6 +16,9 @@ export default class ShopStatisticsService {
 
     @injected
     private orderService!: OrderService
+
+    @injected
+    private itemService!: ItemService
 
     /**
      * Get shop statistics (sales, revenue)
@@ -87,13 +91,17 @@ export default class ShopStatisticsService {
         const agg = await this.orderService.getShopItemSalesStats(shopId, s, t)
         
         // 获取商品信息（这些商品属于当前店铺服务范围，可以直接访问item表）
+
         const itemIds = agg.map(i => i.itemId!).filter(Boolean)
-        const items = await this.prisma.item.findMany({ 
-            where: { 
-                id: { in: itemIds },
-                shopId // 确保只获取当前店铺的商品
-            } 
-        })
+        const items = (await Promise.all(itemIds.map(async itemId => {
+            try {
+                // 使用 currentUserId 是因为已经在上面验证过权限
+                return await this.itemService.getItem(currentUserId, itemId)
+            } catch (error) {
+                // 如果商品不存在或无权访问，返回 null
+                return null
+            }
+        }))).filter((item): item is NonNullable<typeof item> => item !== null)
         const itemInfoMap = new Map(items.map(i => [i.id, i]))
         
         // Sort by sales and revenue

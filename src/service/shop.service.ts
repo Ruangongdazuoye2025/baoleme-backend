@@ -8,6 +8,13 @@ import { BaseServiceUtils } from "./base.service";
 import { FILE_CONSTANTS, HTTP_STATUS } from "../constants/app.constants";
 import sharp from "sharp";
 
+interface CategoryValidationResult {
+    isValid: boolean;
+    onlyAvailable: boolean;
+    errorCode?: number;
+    errorMessage?: string;
+}
+
 @classInjection
 export default class ShopService {
 
@@ -455,4 +462,274 @@ export default class ShopService {
         })
     }
 
+    /**
+     * 获取指定商铺的所有商品分类
+     * @param shopId 商铺ID
+     * @returns 商品分类列表，按照排序字段升序排列
+     * @throws ResponseError 当商铺不存在时抛出404错误
+     */
+    async getItemCategories(shopId: string) {
+        const shop = await BaseServiceUtils.findByIdOrThrow(
+            () => this.prisma.shop.findUnique({
+                where: { id: shopId },
+                include: {
+                    itemCategories: {
+                        orderBy: { order: 'asc' },
+                    },
+                },
+            }),
+            'Shop not found'
+        )
+        return shop.itemCategories
+    }
+
+    /**
+     * 添加新的商品分类
+     * @param currentUserId 当前操作用户的ID
+     * @param shopId 商铺ID
+     * @param name 分类名称
+     * @returns 新创建的商品分类信息
+     * @throws ResponseError 
+     *         - 401: 用户未认证
+     *         - 403: 用户无权限（非店主或管理员）
+     *         - 404: 商铺不存在
+     */
+    async addItemCategory(currentUserId: string, shopId: string, name: string) {
+        return await this.prisma.$transaction(async tx => {
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
+            if (!currentUser) {
+                throw new ResponseError(401, 'Unauthorized')
+            }
+            
+            const shop = await BaseServiceUtils.findByIdOrThrow(
+                () => tx.shop.findUnique({ where: { id: shopId } }),
+                'Shop not found'
+            )
+            
+            if (currentUser.id !== shop.ownerId && currentUser.role !== UserRole.ADMIN) {
+                throw new ResponseError(403, 'Permission denied')
+            }
+            
+            const maxOrder = (await tx.itemCategory.aggregate({
+                where: { shopId },
+                _max: { order: true },
+            }))._max.order ?? -1
+            
+            return await tx.itemCategory.create({
+                data: {
+                    name,
+                    shopId,
+                    order: maxOrder + 1,
+                },
+            })
+        })
+    }
+
+    /**
+     * 获取商品分类详情
+     * @param shopId 商铺ID
+     * @param categoryId 分类ID
+     * @returns 商品分类信息
+     * @throws ResponseError 
+     *         - 404: 商铺不存在或分类不存在
+     */
+    async getItemCategory(shopId: string, categoryId: string) {
+        return await this.prisma.$transaction(async tx => {
+            const shop = await tx.shop.findUnique({
+                where: { id: shopId },
+            })
+            if (!shop) {
+                throw new ResponseError(404, 'Shop not found')
+            }
+            const category = await tx.itemCategory.findUnique({
+                where: {
+                    id: categoryId,
+                    shopId: shop.id,
+                },
+            })
+            if (!category) {
+                throw new ResponseError(404, 'Item category not found')
+            }
+            return category
+        })
+    }
+
+    /**
+     * 更新商品分类信息
+     * @param currentUserId 当前操作用户ID
+     * @param shopId 商铺ID
+     * @param categoryId 分类ID
+     * @param name 新的分类名称
+     * @throws ResponseError
+     *         - 401: 用户未认证
+     *         - 403: 用户无权限（非店主或管理员）
+     *         - 404: 商铺不存在或分类不存在
+     */
+    async updateItemCategory(currentUserId: string, shopId: string, categoryId: string, name: string) {
+        return await this.prisma.$transaction(async tx => {
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
+            if (!currentUser) {
+                throw new ResponseError(401, 'Unauthorized')
+            }
+            
+            const shop = await tx.shop.findUnique({
+                where: { id: shopId },
+            })
+            if (!shop) {
+                throw new ResponseError(404, 'Shop not found')
+            }
+            if (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN') {
+                throw new ResponseError(403, 'Permission denied')
+            }
+            const category = await tx.itemCategory.findUnique({
+                where: {
+                    id: categoryId,
+                    shopId: shop.id,
+                },
+            })
+            if (!category) {
+                throw new ResponseError(404, 'Item category not found')
+            }
+            return await tx.itemCategory.update({
+                where: { id: categoryId },
+                data: { name },
+            })
+        })
+    }
+
+    /**
+     * 更新商品分类的排序位置
+     * @param currentUserId 当前操作用户ID
+     * @param shopId 商铺ID
+     * @param categoryId 要移动的分类ID
+     * @param before 目标位置前面的分类ID，如果为null则移动到最后
+     */
+    async updateItemCategoryPos(currentUserId: string, shopId: string, categoryId: string, before: string | null) {
+        await this.prisma.$transaction(async tx => {
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
+            if (!currentUser) {
+                throw new ResponseError(401, 'Unauthorized')
+            }
+            
+            const shop = await tx.shop.findUnique({ where: { id: shopId } })
+            if (!shop) {
+                throw new ResponseError(404, 'Shop not found')
+            }
+            if (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN') {
+                throw new ResponseError(403, 'Permission denied')
+            }
+            const category = await tx.itemCategory.findUnique({ 
+                where: {
+                    id: categoryId,
+                    shopId: shop.id,
+                } 
+            })
+            if (!category) {
+                throw new ResponseError(404, 'Item category not found')
+            }
+            if (before) {
+                const beforeCategory = await tx.itemCategory.findUnique({ where: { id: before } })
+                if (!beforeCategory || beforeCategory.shopId !== shopId) {
+                    throw new ResponseError(404, 'Item category not found')
+                }
+                if (category.order === beforeCategory.order) {
+                    return
+                }
+                if (category.order < beforeCategory.order) {
+                    await tx.itemCategory.updateMany({
+                        where: {
+                            shopId,
+                            order: { gt: category.order, lt: beforeCategory.order }
+                        },
+                        data: { order: { decrement: 1 } }
+                    })
+                    await tx.itemCategory.update({
+                        where: { id: categoryId },
+                        data: { order: beforeCategory.order - 1 }
+                    })
+                } else {
+                    await tx.itemCategory.updateMany({
+                        where: {
+                            shopId,
+                            order: { lt: category.order, gte: beforeCategory.order }
+                        },
+                        data: { order: { increment: 1 } }
+                    })
+                    await tx.itemCategory.update({
+                        where: { id: categoryId },
+                        data: { order: beforeCategory.order }
+                    })
+                }
+            } else {
+                const maxOrder = (await tx.itemCategory.aggregate({
+                    where: { shopId },
+                    _max: { order: true }
+                }))._max.order!
+                await tx.itemCategory.updateMany({
+                    where: {
+                        shopId,
+                        order: { gt: category.order }
+                    },
+                    data: { order: { decrement: 1 } }
+                })
+                await tx.itemCategory.update({
+                    where: { id: categoryId },
+                    data: { order: maxOrder }
+                })
+            }
+        })
+    }
+
+    /**
+     * 删除商品分类
+     * @param currentUserId 当前操作用户ID
+     * @param shopId 商铺ID
+     * @param categoryId 要删除的分类ID
+     * @throws ResponseError
+     *         - 401: 用户未认证
+     *         - 403: 用户无权限（非店主或管理员）
+     *         - 404: 商铺不存在或分类不存在
+     * @description
+     * 使用事务实现层叠删除：
+     * 1. 先删除所有与该分类关联的商品分类关系
+     * 2. 更新其他分类的排序顺序
+     * 3. 最后删除分类本身
+     */
+    async deleteItemCategory(currentUserId: string, shopId: string, categoryId: string) {
+        return await this.prisma.$transaction(async tx => {
+            // 通过 UserService 获取用户信息
+            const currentUser = await this.userService.getUser(currentUserId)
+            if (!currentUser) {
+                throw new ResponseError(401, 'Unauthorized')
+            }
+            
+            const shop = await tx.shop.findUnique({
+                where: { id: shopId },
+            })
+            if (!shop) {
+                throw new ResponseError(404, 'Shop not found')
+            }
+            if (currentUser.id !== shop.ownerId && currentUser.role !== 'ADMIN') {
+                throw new ResponseError(403, 'Permission denied')
+            }
+
+            const category = await tx.itemCategory.findUnique({
+                where: {
+                    id: categoryId,
+                    shopId: shop.id,
+                },
+            })
+            if (!category) {
+                throw new ResponseError(404, 'Item category not found')
+            }
+
+            // 3. 删除分类本身
+            await tx.itemCategory.delete({
+                where: { id: categoryId },
+            })
+        })
+    }
 }
