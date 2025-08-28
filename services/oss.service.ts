@@ -9,32 +9,32 @@ const OSSService: ServiceSchema = {
         useSSL: process.env.MINIO_USE_SSL === "true",
         accessKey: process.env.MINIO_ACCESS_KEY || "",
         secretKey: process.env.MINIO_SECRET_KEY || "",
-        bucketName: process.env.MINIO_BUCKET_NAME || ""
+        bucketName: process.env.MINIO_BUCKET || ""
     },
 
     actions: {
         existsObject: {
             async handler(ctx) {
-                return (await this.minio.listObjects(this.settings.bucketName, ctx.meta.objectName, false).toArray()).length > 0;
+                return (await (this.minio as Client).listObjects(this.settings.bucketName, ctx.meta.objectName, false).toArray()).length > 0;
             }
         },
 
         getObjectUrl: {
             async handler(ctx) {
-                return await this.minio.presignedGetObject(this.settings.bucketName, ctx.meta.objectName);
+                return await (this.minio as Client).presignedGetObject(this.settings.bucketName, ctx.meta.objectName);
             }
         },
 
         putObject: {
             async handler(ctx) {
-                await this.minio.putObject(this.settings.bucketName, ctx.meta.objectName, ctx.params, undefined, ctx.meta.contentType);
+                await (this.minio as Client).putObject(this.settings.bucketName, ctx.meta.objectName, ctx.params, undefined, { 'Content-Type': ctx.meta.contentType });
                 return await this.actions.getObjectUrl({}, { parentCtx: ctx })
             }
         },
 
         removeObject: {
             async handler(ctx) {
-                await this.minio.removeObject(this.settings.bucketName, ctx.meta.objectName);
+                await (this.minio as Client).removeObject(this.settings.bucketName, ctx.meta.objectName);
             }
         }
     },

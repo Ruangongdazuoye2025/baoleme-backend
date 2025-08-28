@@ -26,6 +26,12 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "POST /auth/reset-password": "auth.resetPassword",
                     "POST /auth/update-email": "auth.updateEmail",
                     "POST /auth/update-password": "auth.updatePassword",
+
+                    "GET /user/:id": "user.get",
+                    "PATCH /user/:id/profile": "user.updateProfile",
+                    "PATCH /user/:id/avatar": "multipart:user.uploadAvatar",
+                    "DELETE /user/:id/avatar": "user.deleteAvatar",
+
                     "POST /addresses": "address.addAddress",
                     "GET  /addresses": "address.getAddresses",
                     "GET  /addresses/:id": "address.getAddressById",

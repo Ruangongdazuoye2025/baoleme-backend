@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, User, UserRole } from "@prisma/client";
 import { Context, ServiceSchema } from "moleculer";
 import ApiGateway, { IncomingRequest, Route, GatewayResponse } from 'moleculer-web'
 
@@ -13,6 +13,11 @@ const NON_LOGIN_APIS = [
     "/api/auth/reset-password"
 ]
 
+export interface AuthMeta {
+    currentUserId: string;
+    currentUserRole: UserRole;
+}
+
 const ApiAuthMixin: ServiceSchema = {
     name: "apiAuth",
     prisma: new PrismaClient(),
@@ -21,18 +26,19 @@ const ApiAuthMixin: ServiceSchema = {
     },
 
     methods: {
-        async authorize(ctx: Context<any, { currentUserId: string }>, route: Route, req: IncomingRequest, res: GatewayResponse) {
+        async authorize(ctx: Context<any, AuthMeta>, route: Route, req: IncomingRequest, res: GatewayResponse) {
             if (NON_LOGIN_APIS.includes(req.parsedUrl)) {
                 return
             }
             const auth = req.headers["authorization"];
             if (auth && auth.startsWith("Bearer")) {
                 const token = auth.slice(7);
-                const id = await ctx.call("auth.authenticateWithToken", { token }) as string
-                if (!id) {
+                const user = await ctx.call("auth.authenticateWithToken", { token }) as User
+                if (!user || !user.isVerified) {
                     throw new E.UnAuthorizedError(E.ERR_INVALID_TOKEN, { token });
                 }
-                ctx.meta.currentUserId = id;
+                ctx.meta.currentUserId = user.id;
+                ctx.meta.currentUserRole = user.role;
             } else {
                 throw new E.UnAuthorizedError(E.ERR_NO_TOKEN, undefined);
             }

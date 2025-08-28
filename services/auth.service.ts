@@ -213,15 +213,15 @@ const AuthService: ServiceSchema = {
                 const { token } = ctx.params
                 const decoded = await this.decodeAccessToken(token)
                 if (!decoded) {
-                    return ""
+                    return null
                 }
                 const id = decoded.sub
                 const password = decoded.pwd
                 const user = await (this.prisma as PrismaClient).user.findUnique({ where: { id, isVerified: true } })
                 if (user && password && password !== user?.password) {
-                    return ""
+                    return null
                 }
-                return id
+                return user
             }
         }
     },
