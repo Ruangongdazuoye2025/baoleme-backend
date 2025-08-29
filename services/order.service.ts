@@ -59,6 +59,10 @@ const updateOrderDeliverySchema = Joi.object({
     longitude: Joi.number().required(),
 })
 
+const deleteOrderSchema = Joi.object({
+    id: Joi.string().uuid().required(),
+})
+
 interface GetOrdersRequest {
     p?: number;
     pn?: number;
@@ -95,6 +99,10 @@ interface UpdateOrderDeliveryRequest {
     id: string;
     latitude: number;
     longitude: number;
+}
+
+interface deleteOrderRequest {
+    id: string;
 }
 
 const OrderService: ServiceSchema = {
@@ -448,8 +456,28 @@ const OrderService: ServiceSchema = {
         },
 
         deleteOrder: {
-            // 删除事件，级联删除
-            // ctx.emit('order.deleted', { id: 'test' })
+            params: deleteOrderSchema as any,
+            async handler(ctx: Context<deleteOrderRequest, AuthMeta>) {
+                const { id } = ctx.params;
+                const { currentUserId, currentUserRole } = ctx.meta;
+                ctx.emit('order.deleted', { id: 'test' });
+
+                if (!currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
+                }
+
+                const order = await this.prisma.order.findUnique({ where: { id } });
+
+                if (!order) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_NOT_FOUND, 404);
+                }
+
+                if (order.status !== 'CANCELED' || order.customerId !== currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
+                }
+
+                await this.prisma.order.delete({ where: { id } });
+            }
         },
     },
 
