@@ -18,6 +18,7 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                 mappingPolicy: "restrict",
                 authorization: true,
                 aliases: {
+                    // Auth
                     "POST /auth/register": "auth.register",
                     "POST /auth/login": "auth.login",
                     "POST /auth/forgot-password": "auth.forgotPassword",
@@ -27,17 +28,20 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "POST /auth/update-email": "auth.updateEmail",
                     "POST /auth/update-password": "auth.updatePassword",
 
+                    // User
                     "GET /user/:id": "user.get",
                     "PATCH /user/:id/profile": "user.updateProfile",
                     "PATCH /user/:id/avatar": "multipart:user.uploadAvatar",
                     "DELETE /user/:id/avatar": "user.deleteAvatar",
 
+                    // Cart
                     "GET /cart/:shopId/item/:itemId": "cart.getCartItemQuantity",
                     "PATCH /cart/:shopId/item/:itemId": "cart.updateCartItemQuantity",
                     "GET /cart/:id": "cart.getCartInfo",
                     "GET /cart/:id/items": "cart.getCartItems",
                     "DELETE /cart/:id/items": "cart.clearCart",
 
+                    // Favorite & History
                     "GET /records/shops": "history.getShopHistory",
                     "POST /records/shops/:id": "history.createShopHistory",
                     "GET /records/items": "history.getItemHistory",
@@ -53,12 +57,25 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "DELETE /favorites/shops/:id": "history.deleteShopFavourite",
                     "DELETE /favorites/items/:id": "history.deleteItemFavourite",
 
+                    // Address
                     "POST /addresses": "address.addAddress",
                     "GET  /addresses": "address.getAddresses",
                     "GET  /addresses/:id": "address.getAddressById",
                     "PATCH  /addresses/:id": "address.updateAddress",
                     "PATCH /addresses/:id/pos": "address.updateAddressOrder",
                     "DELETE /addresses/:id": "address.deleteAddress",
+
+                    // Order
+                    "GET /orders/as-customer": "order.getOrdersAsCustomer",
+                    "GET /orders/as-shop/:shopId": "order.getOrdersAsShop",
+                    "GET /orders/as-rider": "order.getOrdersAsRider",
+                    "GET /orders": "order.getOrders",
+                    "GET /orders/:id": "order.getOrderById",
+                    "POST /orders": "order.createOrder",
+                    "PATCH /orders/:id/rider": "order.updateOrderRider",
+                    "PATCH /orders/:id/status": "order.updateOrderStatus",
+                    "PATCH /orders/:id/delivery": "order.updateOrderDelivery",
+                    "DELETE /orders/:id": "order.deleteOrder",
                 },
                 onAfterCall(ctx, route, req, res, data) {
                     if (!data) {

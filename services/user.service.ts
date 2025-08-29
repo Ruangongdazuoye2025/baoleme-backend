@@ -21,7 +21,7 @@ const updateUserProfileSchema = Joi.object({
     id: Joi.string().uuid().required(),
     name: Joi.string().optional(),
     description: Joi.string().allow('').optional(),
-    role: Joi.string().valid('customer', 'rider').optional(),
+    role: Joi.string().valid('customer', 'rider', 'merchant').optional(),
     emailVisible: Joi.boolean().optional(),
     createdAtVisible: Joi.boolean().optional()
 });
