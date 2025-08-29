@@ -176,8 +176,8 @@ const UserService: ServiceSchema = {
                 }
                 const buffer = Buffer.concat(chunks);
                 const [origin, thumbnail] = await Promise.all([
-                    ctx.call("oss.putObject", sharp(buffer).toFormat('webp'), { meta: { objectName: `users/${id}/avatar.webp`, contentType: this.ossContentType } }),
-                    ctx.call("oss.putObject", sharp(buffer).resize(128, 128).toFormat('webp'), { meta: { objectName: `users/${id}/avatar-thumbnail.webp`, contentType: this.ossContentType } })
+                    ctx.call("oss.putObject", sharp(buffer).toFormat('webp'), { meta: { objectName: `users/${id}/avatar.webp`, contentType: 'image/webp' } }),
+                    ctx.call("oss.putObject", sharp(buffer).resize(128, 128).toFormat('webp'), { meta: { objectName: `users/${id}/avatar-thumbnail.webp`, contentType: 'image/webp' } })
                 ])
                 return { origin, thumbnail }
             }
