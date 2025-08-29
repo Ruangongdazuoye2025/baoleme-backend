@@ -3,6 +3,7 @@ import Joi from "joi";
 import { AuthMeta } from "../mixins/api-auth.mixin";
 import { OrderStatus, OrderItem, Order} from "@prisma/client";
 import { OrderData } from "../types/order.type";
+import haversine from 'haversine-distance';
 
 const ORDER_ERROR_MESSAGES = {
     PERMISSION_DENIED: 'Permission denied',
@@ -37,6 +38,12 @@ const getOrderByIdSchema = Joi.object({
     id: Joi.string().uuid().required(),
 })
 
+const createOrderSchema = Joi.object({
+    shopId: Joi.string().uuid().required(),
+    addressId: Joi.string().uuid().required(),
+    note: Joi.string().required(),
+})
+
 interface GetOrdersRequest {
     p?: number;
     pn?: number;
@@ -52,6 +59,12 @@ interface GetOrdersAsShopRequest {
 
 interface getOrderByIdPrams {
     id: string;
+}
+
+interface CreateOrderRequest {
+    shopId: string;
+    addressId: string;
+    note: string;
 }
 
 const OrderService: ServiceSchema = {
@@ -86,11 +99,54 @@ const OrderService: ServiceSchema = {
         },
 
         getOrdersAsShop: {
-            
+            params: getOrdersAsShopSchema as any,
+            async handler(ctx: Context<GetOrdersAsShopRequest, AuthMeta>) {
+                const { id, p, pn, s } = ctx.params;
+                const { currentUserId, currentUserRole } = ctx.meta;
+                const pageSkip = p && pn ? (p - 1) * pn : undefined;
+                const pageLimit = pn;
+
+                if (!currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.UNAUTHORIZED, 401);
+                }
+
+                const shop: any = await ctx.call('shop.get', { id });
+                if (!shop || shop.owner !== currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
+                }
+
+                const orders = await Promise.all(this.prisma.order.findMany({
+                    where: { shopId: id, status: s },
+                    skip: pageSkip,
+                    take: pageLimit,
+                    orderBy: { createdAt: 'desc' }
+                }).map(async (order: any) => await this.orderDataToOrderInfo(order)));
+
+                return orders;
+            }
         },
 
         getOrdersAsRider: {
+            params: getOrdersSchema as any,
+            async handler(ctx: Context<GetOrdersRequest, AuthMeta>) {
+                const { p, pn, s } = ctx.params;
+                const { currentUserId, currentUserRole } = ctx.meta;
+                const pageSkip = p && pn ? (p - 1) * pn : undefined;
+                const pageLimit = pn;
 
+                if (!currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.UNAUTHORIZED, 401);
+                }
+
+                const orders = await Promise.all(this.prisma.order.findMany({
+                    where: { riderId: currentUserId, status: s },
+                    skip: pageSkip,
+                    take: pageLimit,
+                    orderBy: { createdAt: 'desc' }
+                }).map(async (order: any) => await this.orderDataToOrderInfo(order)));
+
+                return orders;
+            }
         },
 
         getOrders: {
@@ -131,10 +187,10 @@ const OrderService: ServiceSchema = {
                 }
 
                 // todo: 验证权限要获取店铺信息，需要shop.service，随后再修改
-                const shop = order.shopId ? await this.broker.call('shop.getShop', { id: order.shopId}) : null;
+                const shop: any = order.shopId ? await ctx.call('shop.get', { id: order.shopId}) : null;
             
                 let doOmit = false
-                if (order.customerId !== currentUserId /*&& shop?.owner !== currentUserId*/ && order.riderId !== currentUserId && currentUserRole !== 'ADMIN') {
+                if (order.customerId !== currentUserId && shop?.owner !== currentUserId && order.riderId !== currentUserId && currentUserRole !== 'ADMIN') {
                     if (order.status !== 'PREPARED') {
                         throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403)
                     } else {
@@ -146,11 +202,117 @@ const OrderService: ServiceSchema = {
         },
 
         createOrder: {
+            params: createOrderSchema as any,
+            async handler(ctx: Context<CreateOrderRequest, AuthMeta>) {
+                const { shopId, addressId, note } = ctx.params;
+                const { currentUserId, currentUserRole } = ctx.meta;
 
+                if (!currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.UNAUTHORIZED, 401);
+                }
+
+                const shop: any = await ctx.call('shop.get', { id: shopId });
+                if (!shop || shop.verified) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.SHOP_NOT_FOUND, 404);
+                }
+                const now = new Date();
+                const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
+                const openMinutes = shop.openTimeStart
+                const closeMinutes = shop.openTimeEnd
+
+                let isOpen = shop.opened && (closeMinutes > openMinutes ? nowMinutes >= openMinutes && nowMinutes < closeMinutes : nowMinutes >= openMinutes || nowMinutes < closeMinutes)
+                if (!isOpen) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.SHOP_NOT_OPEN, 403);
+                }
+
+                // todo: 可能修改的接口名字
+                const cartItems: any = await ctx.call('cart.get', { currentUserId, shopId });
+                if (cartItems.length === 0) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.CART_EMPTY, 400);
+                }
+
+                const itemsValidation = await Promise.all(cartItems.map(async (cartItemWithInfo: { item: any; quantity: any; }) => {
+                    const item = cartItemWithInfo.item
+                    if (!item.available || item.stockout) {
+                        return { valid: false, reason: 'Item not available' }
+                    }
+                    return { 
+                        valid: true, 
+                        item: item,
+                        cartItem: {
+                            itemId: item.id,
+                            quantity: cartItemWithInfo.quantity,
+                            price: item.price
+                        }
+                    }
+                }))
+
+                if (itemsValidation.some(validation => !validation.valid)) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ITEMS_UNAVAILABLE, 403);
+                }
+
+                const orderItems = itemsValidation.map(validation => {
+                    const validationData = validation as { valid: true; item: any; cartItem: any }
+                    return {
+                        itemId: validationData.cartItem.itemId,
+                        name: validationData.item.name,
+                        quantity: validationData.cartItem.quantity,
+                        price: validationData.item.price * validationData.cartItem.quantity,
+                    }
+                });
+
+                const total = orderItems.reduce((sum, item) => sum + item.price, 0) + shop.deliveryPrice;
+                if (total < shop.deliveryThreshold) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_BELOW_MINIMUM, 403);
+                }
+
+                // todo: 可能修改的接口名字
+                const address: any = await ctx.call('address.getAddressById', { id: addressId, currentUserId });
+                const distance = 0.001 * haversine(
+                    { latitude: shop.addressLatitude, longitude: shop.addressLongitude },
+                    { latitude: address.coordinate[1]!, longitude: address.coordinate[0]! }
+                )
+
+                if (distance > shop.maximumDistance) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.DELIVERY_DISTANCE_EXCEEDED, 403);
+                }
+
+                // todo: 可能修改的接口名字
+                await ctx.call('cart.clearCart', { currentUserId, shopId });
+
+                const order = await this.prisma.order.create({
+                    data: {
+                        customerId: currentUserId,
+                        shopId,
+                        deliveryFee: shop.deliveryPrice,
+                        total: shop.deliveryPrice + total,
+                        note,
+                        items: { create: orderItems },
+                        shopLatitude: shop.addressLatitude,
+                        shopLongitude: shop.addressLongitude,
+                        shopProvince: shop.addressProvince,
+                        shopCity: shop.addressCity,
+                        shopDistrict: shop.addressDistrict,
+                        shopAddress: shop.addressAddress,
+                        shopName: shop.name, // 修正：使用 shop.name 而不是 shop.addressName
+                        shopTel: shop.addressTel,
+                        customerLatitude: address.coordinate[1]!,
+                        customerLongitude: address.coordinate[0]!,
+                        customerProvince: address.province,
+                        customerCity: address.city,
+                        customerDistrict: address.district,
+                        customerAddress: address.address,
+                        customerName: address.name,
+                        customerTel: address.tel,
+                    }
+                })
+
+                return await this.orderDataToOrderInfo(order);
+            }
         },
 
         updateOrderRider: {
-
+            
         },
 
         updateOrderStatus: {
