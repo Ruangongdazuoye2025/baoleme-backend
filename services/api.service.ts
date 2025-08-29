@@ -26,6 +26,7 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "POST /auth/reset-password": "auth.resetPassword",
                     "POST /auth/update-email": "auth.updateEmail",
                     "POST /auth/update-password": "auth.updatePassword",
+                    "GET /user/{id}": "user.get",
                 },
                 onAfterCall(ctx, route, req, res, data) {
                     if (!data) {
