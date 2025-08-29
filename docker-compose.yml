@@ -6,7 +6,7 @@ services:
     build:
       context: .
     image: baoleme-backend-services:latest
-    container_name: baoleme-backend-microservice-api
+    container_name: baoleme-backend-microservices-api
     env_file: docker-compose.env
     environment:
       SERVICES: api
@@ -25,7 +25,7 @@ services:
     build:
       context: .
     image: baoleme-backend-services:latest
-    container_name: baoleme-backend-microservice-auth
+    container_name: baoleme-backend-microservices-auth
     env_file: docker-compose.env
     environment:
       SERVICES: auth
@@ -39,7 +39,7 @@ services:
     build:
       context: .
     image: baoleme-backend-services:latest
-    container_name: baoleme-backend-microservice-mail
+    container_name: baoleme-backend-microservices-mail
     env_file: docker-compose.env
     environment:
       SERVICES: mail
@@ -52,7 +52,7 @@ services:
     build:
       context: .
     image: baoleme-backend-services:latest
-    container_name: baoleme-backend-microservice-oss
+    container_name: baoleme-backend-microservices-oss
     env_file: docker-compose.env
     environment:
       SERVICES: oss
@@ -65,7 +65,7 @@ services:
     build:
       context: .
     image: baoleme-backend-services:latest
-    container_name: baoleme-backend-microservice-address
+    container_name: baoleme-backend-microservices-address
     env_file: docker-compose.env
     environment:
       SERVICES: address

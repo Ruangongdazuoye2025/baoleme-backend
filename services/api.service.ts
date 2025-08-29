@@ -34,6 +34,29 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "PATCH /user/:id/avatar": "multipart:user.uploadAvatar",
                     "DELETE /user/:id/avatar": "user.deleteAvatar",
 
+                    // Cart
+                    "GET /cart/:shopId/item/:itemId": "cart.getCartItemQuantity",
+                    "PATCH /cart/:shopId/item/:itemId": "cart.updateCartItemQuantity",
+                    "GET /cart/:id": "cart.getCartInfo",
+                    "GET /cart/:id/items": "cart.getCartItems",
+                    "DELETE /cart/:id/items": "cart.clearCart",
+
+                    // Favorite & History
+                    "GET /records/shops": "history.getShopHistory",
+                    "POST /records/shops/:id": "history.createShopHistory",
+                    "GET /records/items": "history.getItemHistory",
+                    "POST /records/items/:id": "history.createItemHistory",
+                    "GET /favorites/shops": "history.getShopFavourite",
+                    "POST /favorites/shops/:id": "history.createShopFavourite",
+                    "GET /favorites/items": "history.getItemFavourite",
+                    "POST /favorites/items/:id": "history.createItemFavourite",
+                    "GET /favorites/shops/:id": "history.getShopFavouriteById",
+                    "GET /favorites/items/:id": "history.getItemFavouriteById",
+                    "DELETE /records/shops/:id": "history.deleteShopHistory",
+                    "DELETE /records/items/:id": "history.deleteItemHistory",
+                    "DELETE /favorites/shops/:id": "history.deleteShopFavourite",
+                    "DELETE /favorites/items/:id": "history.deleteItemFavourite",
+
                     // Address
                     "POST /addresses": "address.addAddress",
                     "GET  /addresses": "address.getAddresses",
