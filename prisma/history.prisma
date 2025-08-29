@@ -1,31 +1,21 @@
-model ShopHistory {
+enum RecordType {
+    HISTORY
+    FAVORITE
+}
+
+model ShopRecord {
     userId    String   @db.Uuid
     shopId    String   @db.Uuid
-    // 移除外键约束
+    type      RecordType
     createdAt DateTime @default(now())
     @@id([userId, shopId])
 }
 
-model ShopFavourite {
-    userId    String   @db.Uuid
-    shopId    String   @db.Uuid
-    // 移除外键约束
-    createdAt DateTime @default(now())
-    @@id([userId, shopId])
-}
-
-model ItemHistory {
+model ItemRecord {
     userId    String   @db.Uuid
     itemId    String   @db.Uuid
-    // 移除外键约束
+    type      RecordType
     createdAt DateTime @default(now())
     @@id([userId, itemId])
 }
 
-model ItemFavourite {
-    userId    String   @db.Uuid
-    itemId    String   @db.Uuid
-    // 移除外键约束
-    createdAt DateTime @default(now())
-    @@id([userId, itemId])
-}
