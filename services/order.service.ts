@@ -44,6 +44,10 @@ const createOrderSchema = Joi.object({
     note: Joi.string().required(),
 })
 
+const updateOrderRiderSchema = Joi.object({
+    id: Joi.string().uuid().required(),
+})
+
 interface GetOrdersRequest {
     p?: number;
     pn?: number;
@@ -65,6 +69,10 @@ interface CreateOrderRequest {
     shopId: string;
     addressId: string;
     note: string;
+}
+
+interface UpdateOrderRiderRequest {
+    id: string;
 }
 
 const OrderService: ServiceSchema = {
@@ -312,7 +320,32 @@ const OrderService: ServiceSchema = {
         },
 
         updateOrderRider: {
-            
+            params: updateOrderRiderSchema as any,
+            async handler(ctx: Context<UpdateOrderRiderRequest, AuthMeta>) {
+                const { id } = ctx.params;
+                const { currentUserId, currentUserRole } = ctx.meta;
+
+                if (!currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
+                }
+
+                const order = await this.prisma.order.findUnique({ where: { id } });
+
+                if (!order) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_NOT_FOUND, 404);
+                }
+
+                if (order.status !== 'PREPARED') {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_STATUS_NOT_PREPARED, 403);
+                }
+
+                const updatedOrder = await this.prisma.order.update({
+                    where: { id },
+                    data: { riderId: currentUserId, status: 'DELIVERING', deliveredAt: new Date() }
+                });
+
+                return await this.orderDataToOrderInfo(updatedOrder)
+            }
         },
 
         updateOrderStatus: {
