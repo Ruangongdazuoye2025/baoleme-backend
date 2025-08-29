@@ -53,6 +53,12 @@ const updateOrderStatusSchema = Joi.object({
     status: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').required(),
 })
 
+const updateOrderDeliverySchema = Joi.object({
+    id: Joi.string().uuid().required(),
+    latitude: Joi.number().required(),
+    longitude: Joi.number().required(),
+})
+
 interface GetOrdersRequest {
     p?: number;
     pn?: number;
@@ -83,6 +89,12 @@ interface UpdateOrderRiderRequest {
 interface UpdateOrderStatusRequest {
     id: string;
     status: Status;
+}
+
+interface UpdateOrderDeliveryRequest {
+    id: string;
+    latitude: number;
+    longitude: number;
 }
 
 const OrderService: ServiceSchema = {
@@ -404,7 +416,35 @@ const OrderService: ServiceSchema = {
         },
 
         updateOrderDelivery: {
+            params: updateOrderDeliverySchema as any,
+            async handler(ctx: Context<UpdateOrderDeliveryRequest, AuthMeta>) {
+                const { id, latitude, longitude } = ctx.params;
+                const { currentUserId, currentUserRole } = ctx.meta;
 
+                if (!currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
+                }
+
+                const order = await this.prisma.order.findUnique({ where: { id } });
+                if (!order) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_NOT_FOUND, 404);
+                }
+
+                if (order.riderId !== currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
+                }
+
+                if (order.status !== 'DELIVERING') {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_STATUS_NOT_PREPARED, 403);
+                }
+
+                const updatedOrder = await this.prisma.order.update({
+                    where: { id },
+                    data: { deliveryLatitude: latitude, deliveryLongitude: longitude }
+                });
+
+                return await this.orderDataToOrderInfo(updatedOrder)
+            }
         },
 
         deleteOrder: {
