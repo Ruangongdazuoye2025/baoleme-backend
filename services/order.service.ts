@@ -20,13 +20,27 @@ const ORDER_ERROR_MESSAGES = {
 
 type Status = 'unpaid' | 'preparing' | 'prepared' | 'delivering' | 'finished' | 'canceled'
 
-const getOrderAsCustomerSchema = Joi.object({
+const getOrdersAsCustomerSchema = Joi.object({
     p: Joi.number().integer().optional(),
     pn: Joi.number().integer().optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
 
-interface GetOrderAsCustomerRequest {
+const getOrdersAsShopSchema = Joi.object({
+    id: Joi.string().uuid().required(),
+    p: Joi.number().integer().optional(),
+    pn: Joi.number().integer().optional(),
+    s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
+})
+
+interface GetOrdersAsCustomerRequest {
+    p?: number;
+    pn?: number;
+    s?: Status;
+}
+
+interface GetOrdersAsShopRequest {
+    id: string;
     p?: number;
     pn?: number;
     s?: Status;
@@ -41,8 +55,8 @@ const OrderService: ServiceSchema = {
 
     actions: {
         getOrdersAsCustomer: {
-            params: getOrderAsCustomerSchema as any,
-            async handler(ctx: Context<GetOrderAsCustomerRequest, AuthMeta>) {
+            params: getOrdersAsCustomerSchema as any,
+            async handler(ctx: Context<GetOrdersAsCustomerRequest, AuthMeta>) {
                 const { p, pn, s } = ctx.params;
                 const { currentUserId, currentUserRole } = ctx.meta;
                 const pageSkip = p && pn ? (p - 1) * pn : undefined;
@@ -61,7 +75,30 @@ const OrderService: ServiceSchema = {
 
                 return orders;
             }
-        }
+        },
+
+        getOrdersAsShop: {
+            params: getOrdersAsShopSchema as any,
+            async handler(ctx: Context<GetOrdersAsShopRequest, AuthMeta>) {
+                const { p, pn, s } = ctx.params;
+                const { currentUserId, currentUserRole } = ctx.meta;
+                const pageSkip = p && pn ? (p - 1) * pn : undefined;
+                const pageLimit = pn;
+
+                if (!currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.UNAUTHORIZED, 401);
+                }
+
+                const orders = await Promise.all(this.prisma.order.findMany({
+                    where: { customerId: currentUserId, status: s},
+                    skip: pageSkip,
+                    take: pageLimit,
+                    orderBy: { createAt: 'desc'},
+                }).map(async (order: any) => await this.orderDataToOrderInfo(order)));
+
+                return orders;
+            }
+        },
     },
 
     methods: {
