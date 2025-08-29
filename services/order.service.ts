@@ -33,6 +33,10 @@ const getOrdersSchema = Joi.object({
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
 
+const getOrderByIdSchema = Joi.object({
+    id: Joi.string().uuid().required(),
+})
+
 interface GetOrdersRequest {
     p?: number;
     pn?: number;
@@ -44,6 +48,10 @@ interface GetOrdersAsShopRequest {
     p?: number;
     pn?: number;
     s?: Status;
+}
+
+interface getOrderByIdPrams {
+    id: string;
 }
 
 const OrderService: ServiceSchema = {
@@ -108,8 +116,33 @@ const OrderService: ServiceSchema = {
             }
         },
 
-        getOrdersById: {
+        getOrderById: {
+            params: getOrderByIdSchema as any,
+            async handler(ctx: Context<getOrderByIdPrams, AuthMeta>) {
+                const { id } = ctx.params;
+                const { currentUserId, currentUserRole } = ctx.meta;
 
+                if (!currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.UNAUTHORIZED, 401);
+                }
+                const order = await this.prisma.order.findUnique({ where: { id } });
+                if (!order) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_NOT_FOUND, 404);
+                }
+
+                // todo: 验证权限要获取店铺信息，需要shop.service，随后再修改
+                const shop = order.shopId ? await this.broker.call('shop.getShop', { id: order.shopId}) : null;
+            
+                let doOmit = false
+                if (order.customerId !== currentUserId /*&& shop?.owner !== currentUserId*/ && order.riderId !== currentUserId && currentUserRole !== 'ADMIN') {
+                    if (order.status !== 'PREPARED') {
+                        throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403)
+                    } else {
+                        doOmit = true
+                    }
+                }
+                return doOmit ? this.orderDataToOmittedOrderInfo(order) : await this.orderDataToOrderInfo(order);
+            }
         },
 
         createOrder: {
@@ -129,7 +162,8 @@ const OrderService: ServiceSchema = {
         },
 
         deleteOrder: {
-
+            // 删除事件，级联删除
+            // ctx.emit('order.deleted', { id: 'test' })
         },
     },
 
@@ -185,7 +219,60 @@ const OrderService: ServiceSchema = {
                     tel: order.customerTel,
                 }
             }
-        }
+        },
+
+        orderDataToOmittedOrderInfo(order: { 
+            id: string; 
+            status: OrderStatus; 
+            preparedAt?: Date | null; 
+            shopLongitude: number; 
+            shopLatitude: number; 
+            shopProvince: string; 
+            shopCity: string; 
+            shopDistrict: string; 
+            shopAddress: string; 
+            shopName: string; 
+            shopTel: string; 
+            customerLongitude: number; 
+            customerLatitude: number; 
+            customerProvince: string; 
+            customerCity: string; 
+            customerDistrict: string; 
+            customerAddress: string; 
+            customerName: string; 
+            customerTel: string; 
+        }) {
+            return {
+                id: order.id,
+                status: order.status.toLowerCase(),
+                preparedAt: order.preparedAt,
+                shopAddress: {
+                    coordinate: [order.shopLongitude, order.shopLatitude],
+                    province: order.shopProvince,
+                    city: order.shopCity,
+                    district: order.shopDistrict,
+                    address: order.shopAddress,
+                    name: order.shopName,
+                    tel: order.shopTel,
+                },
+                customerAddress: {
+                    coordinate: [order.customerLongitude, order.customerLatitude],
+                    province: order.customerProvince,
+                    city: order.customerCity,
+                    district: order.customerDistrict,
+                    address: order.customerAddress,
+                    name: order.customerName,
+                    tel: order.customerTel,
+                }
+            }
+        },
+
+        async getOrderItemCoverLinks(id: string) {
+            const [origin, thumbnail] = await Promise.all([
+                this.ossService.getObjectUrl(`items/${id}/cover.webp`),
+                this.ossService.getObjectUrl(`items/${id}/cover-thumbnail.webp`)])
+            return { origin, thumbnail }
+        },
     }
 }
 
