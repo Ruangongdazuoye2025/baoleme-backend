@@ -1,7 +1,7 @@
 import { Context, ServiceSchema, Errors } from "moleculer";
 import Joi from "joi";
 import { AuthMeta } from "../mixins/api-auth.mixin";
-import { OrderStatus, OrderItem, Order} from "@prisma/client";
+import { OrderStatus, OrderItem, Order, Prisma} from "@prisma/client";
 import { OrderData } from "../types/order.type";
 import haversine from 'haversine-distance';
 
@@ -48,6 +48,11 @@ const updateOrderRiderSchema = Joi.object({
     id: Joi.string().uuid().required(),
 })
 
+const updateOrderStatusSchema = Joi.object({
+    id: Joi.string().uuid().required(),
+    status: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').required(),
+})
+
 interface GetOrdersRequest {
     p?: number;
     pn?: number;
@@ -73,6 +78,11 @@ interface CreateOrderRequest {
 
 interface UpdateOrderRiderRequest {
     id: string;
+}
+
+interface UpdateOrderStatusRequest {
+    id: string;
+    status: Status;
 }
 
 const OrderService: ServiceSchema = {
@@ -349,7 +359,48 @@ const OrderService: ServiceSchema = {
         },
 
         updateOrderStatus: {
+            params: updateOrderStatusSchema as any,
+            async handler(ctx: Context<UpdateOrderStatusRequest, AuthMeta>) {
+                const { id, status } = ctx.params;
+                const { currentUserId, currentUserRole } = ctx.meta;
 
+                if (!currentUserId) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
+                }
+
+                const currentUser: any = await ctx.call('user.get', { id: currentUserId });
+
+                const order = await this.prisma.order.findUnique({ where: { id } });
+                if (!order) {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_NOT_FOUND, 404);
+                }
+
+                const shop: any = order.shopId ? await ctx.call('shop.get', { id: order.shopId }) : null;
+
+                const stateTransition: [boolean, 'canceledAt' | 'paidAt' | 'preparedAt' | 'finishedAt'][] = [
+                    [currentUser.id === order.customerId && order.status === 'UNPAID' && status === 'canceled', 'canceledAt'],
+                    [currentUser.id === order.customerId && order.status === 'UNPAID' && status === 'preparing', 'paidAt'],
+                    [currentUser.id === shop?.ownerId && order.status === 'PREPARING' && status === 'prepared', 'preparedAt'],
+                    [currentUser.id === order.riderId && order.status === 'DELIVERING' && status === 'finished', 'finishedAt'],
+                ]
+
+                const permittedStatusProp = stateTransition.find(([permitted]) => permitted)?.[1]
+
+                if (permittedStatusProp) {
+                    const ret = await this.prisma.order.update({
+                        where: { id },
+                        data: {
+                            status: status,
+                            [permittedStatusProp]: new Date(),
+                        }
+                    })
+                    if (ret.status === 'FINISHED')
+                        await this.updateItemsSale(ret.id, ret.shopId!)
+                    return await this.orderDataToOrderInfo(ret)
+                } else {
+                    throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
+                }
+            }
         },
 
         updateOrderDelivery: {
@@ -467,6 +518,67 @@ const OrderService: ServiceSchema = {
                 this.ossService.getObjectUrl(`items/${id}/cover.webp`),
                 this.ossService.getObjectUrl(`items/${id}/cover-thumbnail.webp`)])
             return { origin, thumbnail }
+        },
+
+        async updateItemsSale(orderId: string, shopId: string) {
+            const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+            
+            // 获取订单项（不包含关联数据）
+            const orderItems = await this.prisma.orderItem.findMany({
+                where: { orderId }
+            })
+            
+            // 收集需要更新的商品销量数据
+            const itemSaleUpdates: Array<{ itemId: string; saleCount: number }> = []
+            
+            // 计算每个商品的销量
+            for (const orderItem of orderItems) {
+                if (orderItem.itemId) {
+                    const itemOrderSum = (await this.prisma.orderItem.aggregate({
+                        _sum: { quantity: true },
+                        where: { 
+                            itemId: orderItem.itemId,
+                            order: {
+                                status: 'FINISHED',
+                                finishedAt: {
+                                    gte: oneMonthAgo,
+                                }
+                            },
+                        },
+                    }))._sum.quantity || 0
+                    
+                    itemSaleUpdates.push({
+                        itemId: orderItem.itemId,
+                        saleCount: itemOrderSum
+                    })
+                }
+            }
+            
+            // 计算店铺销量
+            const shopItemIds = await this.itemService.getShopItemIds(shopId)
+            const shopOrderSum = (await this.prisma.orderItem.aggregate({
+                _sum: { quantity: true },
+                where: {
+                    itemId: { in: shopItemIds },
+                    order: {
+                        status: 'FINISHED',
+                        finishedAt: {
+                            gte: oneMonthAgo,
+                        }
+                    },
+                },
+            }))._sum.quantity || 0
+            
+            // 在当前事务完成后异步更新销量数据，确保数据一致性
+            // 这样避免跨服务调用在事务中导致的死锁问题
+            setImmediate(async () => {
+                try {
+                    await this.updateSalesWithRetry(itemSaleUpdates, shopId, shopOrderSum, orderId)
+                } catch (error) {
+                    console.error(`Failed to update sales for order ${orderId}:`, error)
+                    // 可以在这里添加重试队列或者告警机制
+                }
+            })
         },
     }
 }
