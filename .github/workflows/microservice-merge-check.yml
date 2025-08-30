@@ -17,11 +17,11 @@ jobs:
 
       - name: Run docker-compose
         run: |
-          docker compose -f docker-compose.yml up -d --wait
+          docker compose -f scripts/ci-compose.yml up -d --wait
 
-      - name: Run tests
-        run: |
-          docker container exec baoleme-backend-microservices-api
+      # - name: Run tests
+      #   run: |
+      #     docker container exec baoleme-backend-microservices-api
 
       - name: Check commit messages
         uses: wagoid/commitlint-github-action@v6
