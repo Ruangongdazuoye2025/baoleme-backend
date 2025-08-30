@@ -30,15 +30,15 @@ services:
     networks:
       - internal
 
-  mail:
-    image: baoleme-backend-services:latest
-    environment:
-      SERVICES: mail
-    env_file: docker-compose.env
-    depends_on:
-      - nats
-    networks:
-      - internal
+  # mail:
+  #   image: baoleme-backend-services:latest
+  #   environment:
+  #     SERVICES: mail
+  #   env_file: docker-compose.env
+  #   depends_on:
+  #     - nats
+  #   networks:
+  #     - internal
 
   oss:
     image: baoleme-backend-services:latest
