@@ -17,12 +17,12 @@ const getFilteredGlobalShopsRequestSchema = Joi.object({
 }).required()
 
 const getShopsByOwnerIdRequestSchema = Joi.object({
-    owner: Joi.string().uuid().required(),
+    id: Joi.string().uuid().required(),
 }).required()
 
 const shopIdRequestSchema = Joi.object({
     id: Joi.string().uuid().required(), 
-}).required()
+})
 
 const createShopRequestSchema = Joi.object({
     name: Joi.string().required(),
@@ -71,12 +71,11 @@ const updateShopProfileRequestSchema = Joi.object({
 // For updateShopImage, params come from ctx.meta.$params
 const updateShopImageMetaParamsSchema = Joi.object({
     id: Joi.string().uuid().required(),
-    fieldname: Joi.string().valid('cover', 'detail', 'license').required(), // 预期的文件字段名
 });
 
 const updateShopOwnerRequestSchema = Joi.object({
     id: Joi.string().uuid().required(),
-    ownerId: Joi.string().uuid().required(),
+    owner: Joi.string().uuid().required(),
 });
 
 const updateShopSaleRequestSchema = Joi.object({
@@ -161,7 +160,7 @@ interface GetFilteredGlobalShopsRequest {
 }
 
 interface GetShopsByOwnerIdRequest {
-    ownerId: string;
+    id: string;
 }
 
 interface GetShopRequest {
@@ -191,25 +190,25 @@ interface CreateShopRequest {
 
 interface UpdateShopProfileRequest {
     id: string
-    name?: string
-    description?: string
-    categories?: string[]
-    address?: {
-        coordinate?: [number, number]
-        province?: string
-        city?: string
-        district?: string
-        address?: string
-        name?: string
-        tel?: string
+    name: string
+    description: string
+    categories: string[]
+    address: {
+        coordinate: [number, number]
+        province: string
+        city: string
+        district: string
+        address: string
+        name: string
+        tel: string
     }
     verified?: boolean
-    opened?: boolean
-    openTimeStart?: number
-    openTimeEnd?: number
-    deliveryThreshold?: number
-    deliveryPrice?: number
-    maximumDistance?: number
+    opened: boolean
+    openTimeStart: number
+    openTimeEnd: number
+    deliveryThreshold: number
+    deliveryPrice: number
+    maximumDistance: number
 }
 
 interface UpdateShopImageMeta { // For ctx.meta.$params in stream actions
@@ -223,7 +222,7 @@ interface DeleteShopRequest {
 
 interface UpdateShopOwnerRequest {
     id: string;
-    ownerId: string;
+    owner: string;
 }
 
 interface AddShopCategoryRequest {
@@ -307,10 +306,6 @@ const ShopService: ServiceSchema = {
                 const filterKeywords = q.split(' ').filter(s => s.length > 0);
                 const minCreatedAt = min_ca ? new Date(min_ca) : undefined
                 const maxCreatedAt = max_ca ? new Date(max_ca) : undefined
-                const currentUser = await ctx.call("user.get", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
 
                 if (currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401)
@@ -348,15 +343,11 @@ const ShopService: ServiceSchema = {
         getShopsByOwnerId: {
             params: getShopsByOwnerIdRequestSchema as any,
             async handler(ctx: Context<GetShopsByOwnerIdRequest>) {
-                const { ownerId } = ctx.params;
-                const user = await ctx.call("user.get", { id: ownerId });
-                if (!user) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
+                const { id } = ctx.params;
 
                 const shops = await (this.prisma as PrismaClient).shop.findMany({
                     include: { categories: true },
-                    where: { ownerId },
+                    where: { ownerId: id },
                     orderBy: { createdAt: 'desc' },
                 });
                 return Promise.all(shops.map(shop => this.shopDataToFullShopInfo(shop, ctx)));
@@ -386,11 +377,6 @@ const ShopService: ServiceSchema = {
             async handler(ctx: Context<CreateShopRequest, AuthMeta>) {
                 const { currentUserId , currentUserRole } = ctx.meta;
                 const { name, description, categories, address, opened, openTimeStart, openTimeEnd, deliveryThreshold, deliveryPrice, maximumDistance } = ctx.params;
-
-                const user = await ctx.call("user.get", { id: currentUserId });
-                if (!user) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
 
                 await Promise.all(categories.map(async id => {
                     const category = await (this.prisma as PrismaClient).shopCategory.findUnique({ where: { id } });
@@ -444,11 +430,6 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser = await ctx.call("user.get", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
-
                 if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
@@ -472,7 +453,6 @@ const ShopService: ServiceSchema = {
                 ctx.emit("shop.deleted", {
                     id: id,
                     ownerId: shop.ownerId,
-                    deletedBy: currentUserId,
                 });
                 return { success: true };
             }
@@ -488,12 +468,6 @@ const ShopService: ServiceSchema = {
                 const shop = await (this.prisma as PrismaClient).shop.findUnique({ where: { id } });
                 if (!shop) {
                     throw new Errors.MoleculerError('Shop not found', 404);
-                }
-
-                const currentUser = await ctx.call("user.get", { id: currentUserId });
-
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
                 }
 
                 if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
@@ -518,22 +492,22 @@ const ShopService: ServiceSchema = {
                     data: {
                         name,
                         description,
-                        categories: categories ? { set: categories.map(catId => ({ id: catId })) } : undefined,
-                        addressLongitude: address?.coordinate?.[0],
-                        addressLatitude: address?.coordinate?.[1],
-                        addressProvince: address?.province,
-                        addressCity: address?.city,
-                        addressDistrict: address?.district,
-                        addressAddress: address?.address,
-                        addressName: address?.name,
-                        addressTel: address?.tel,
-                        verified,
+                        ownerId: currentUserId, 
                         opened,
-                        openTimeStart: openTimeStart ? this.timeToMinutes(openTimeStart) : null,
-                        openTimeEnd: openTimeEnd ? this.timeToMinutes(openTimeEnd) : null,
+                        openTimeStart,
+                        openTimeEnd,
                         deliveryThreshold,
                         deliveryPrice,
-                        maximumDistance
+                        maximumDistance,
+                        categories: { connect: categories.map(id => ({ id })) },
+                        addressLongitude: address.coordinate[0],
+                        addressLatitude: address.coordinate[1],
+                        addressProvince: address.province,
+                        addressCity: address.city,
+                        addressDistrict: address.district,
+                        addressAddress: address.address,
+                        addressName: address.name,
+                        addressTel: address.tel
                     },
                     include: { categories: true }
                 });
@@ -542,12 +516,13 @@ const ShopService: ServiceSchema = {
         },
 
         updateShopImage: {
-            params: updateShopImageMetaParamsSchema as any,
             async handler(ctx: Context<any, AuthMeta & { $params: UpdateShopImageMeta } & { mimetype: string }>) {
                 const stream = ctx.params; 
                 const { currentUserId, currentUserRole } = ctx.meta;
                 const { id } = ctx.meta.$params; 
                 const { mimetype, fieldname } = ctx.meta as any; 
+
+                // TODO validate id and fieldname
 
                 if (!mimetype.startsWith('image/')) {
                     throw new Errors.MoleculerError("Invalid image format", 400);
@@ -571,16 +546,14 @@ const ShopService: ServiceSchema = {
                 const objectNameBase = `shops/${id}/${fieldname}`;
 
                 const [originUrl, thumbnailUrl] = await Promise.all([
-                    ctx.call("oss.putObject", {
+                    ctx.call("oss.putObject", sharp(buffer).toFormat('webp'), { meta :{
                         objectName: `${objectNameBase}.webp`,
-                        content: sharp(buffer).toFormat('webp'), 
                         contentType: 'image/webp'
-                    }),
-                    ctx.call("oss.putObject", {
+                    }}),
+                    ctx.call("oss.putObject", sharp(buffer).resize(128, 128, { fit: 'outside' }).toFormat('webp'), { meta :{
                         objectName: `${objectNameBase}-thumbnail.webp`,
-                        content: sharp(buffer).resize(128, 128, { fit: 'outside' }).toFormat('webp'),
                         contentType: 'image/webp'
-                    })
+                    }})
                 ]);
 
                 return { fieldname, origin: originUrl, thumbnail: thumbnailUrl };
@@ -591,32 +564,26 @@ const ShopService: ServiceSchema = {
             params: updateShopOwnerRequestSchema as any,
             async handler(ctx: Context<UpdateShopOwnerRequest, AuthMeta>) {
                 const { currentUserId, currentUserRole } = ctx.meta;
-                const { id, ownerId } = ctx.params;
+                const { id ,owner } = ctx.params;
 
                 const shop = await (this.prisma as PrismaClient).shop.findUnique({ where: { id } });
                 if (!shop) {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
-
                 if (currentUserRole !== UserRole.ADMIN && currentUserId !== shop.ownerId) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
-                const newOwner = await ctx.call("user.get", { id: ownerId });
+                const newOwner = await ctx.call("user.get", { id: owner });
                 if (!newOwner) {
                     throw new Errors.MoleculerError('New owner user not found', 404);
                 }
 
                 await (this.prisma as PrismaClient).shop.update({
                     where: { id },
-                    data: { ownerId }
+                    data: { ownerId: owner }
                 });
-                return { success: true, newOwnerId: ownerId };
             }
         },
 
@@ -681,10 +648,6 @@ const ShopService: ServiceSchema = {
                 const { currentUserId, currentUserRole } = ctx.meta;
                 const { name } = ctx.params;
 
-                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
-                if(!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
                 if(currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
@@ -723,10 +686,6 @@ const ShopService: ServiceSchema = {
                 const { currentUserId, currentUserRole } = ctx.meta;
                 const { id, name } = ctx.params;
 
-                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
                 if (currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
@@ -750,10 +709,6 @@ const ShopService: ServiceSchema = {
                 const { currentUserId, currentUserRole } = ctx.meta;
                 const { id, before } = ctx.params;
 
-                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
                 if (currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
@@ -826,10 +781,6 @@ const ShopService: ServiceSchema = {
                 const { currentUserId, currentUserRole } = ctx.meta;
                 const { id } = ctx.params;
 
-                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
                 if (currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
@@ -888,10 +839,6 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
                 if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
@@ -946,10 +893,6 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
                 if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
@@ -983,10 +926,6 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
                 if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
@@ -1073,10 +1012,6 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
                 if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
                     throw new Errors.MoleculerError('Permission denied', 401);
                 }
@@ -1097,9 +1032,7 @@ const ShopService: ServiceSchema = {
                 ctx.emit("itemCategory.deleted", {
                     id: categoryId,
                     shopId: shopId,
-                    deletedBy: currentUserId,
                 });
-                return { success: true };
             }
         }
     },
