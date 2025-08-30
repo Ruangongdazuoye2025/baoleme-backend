@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build the Docker image
-        run: docker build . --file Dockerfile --tag baoleme-backend-services:latest
+        run: docker build . --file Dockerfile --tag baoleme-backend-microservice:latest
       
       - name: Prepare environment
         run: cp docker-compose.env scripts/docker-compose.env
@@ -24,4 +24,4 @@ jobs:
 
       # - name: Run tests
       #   run: |
-      #     docker container exec baoleme-backend-microservices-api
+      #     docker container exec baoleme-backend-microservice-api
