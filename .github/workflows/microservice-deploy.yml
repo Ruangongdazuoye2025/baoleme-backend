@@ -11,8 +11,8 @@ on:
     
 
 env:
-  IMAGE_NAME: baoleme-backend-microservice:${{ github.sha }}
-  IMAGE_NAME_LATEST: baoleme-backend-microservice:latest
+  IMAGE_NAME: baoleme-backend-microservices:${{ github.sha }}
+  IMAGE_NAME_LATEST: baoleme-backend-microservices:latest
 
 defaults:
   run:
@@ -36,15 +36,15 @@ jobs:
         docker compose -f scripts/ci-compose.yml up -d --wait
     # - name: Run tests
     #   run: |
-    #     docker container exec baoleme-backend-microservice-api
+    #     docker container exec baoleme-backend-microservices-api
     - name: Save Docker image
       run: |
-        docker image save $env:IMAGE_NAME_LATEST | gzip > baoleme-backend-microservice.tar.gz
+        docker image save $env:IMAGE_NAME_LATEST | gzip > baoleme-backend-microservices.tar.gz
     
     - name: Prepare deploy files
       run: |
         mkdir -p deploy
-        cp baoleme-backend-microservice.tar.gz deploy/
+        cp baoleme-backend-microservices.tar.gz deploy/
         cp docker-compose.yml deploy/
         cp docker-compose.env deploy/
         cp k8s.yaml deploy/
@@ -88,7 +88,7 @@ jobs:
           # 清理未使用的镜像和数据卷
           docker system prune -f
           # 加载本地镜像
-          docker image load -i baoleme-backend-microservice.tar.gz
+          docker image load -i baoleme-backend-microservices.tar.gz
           # 启动新服务
           docker compose up -d --wait
           # 检查服务状态

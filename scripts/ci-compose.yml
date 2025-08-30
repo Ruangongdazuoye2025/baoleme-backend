@@ -2,7 +2,7 @@ version: "3.3"
 
 services:
   api:
-    image: baoleme-backend-microservice:latest
+    image: baoleme-backend-microservices:latest
     environment:
       SERVICES: api
       PORT: 3000
@@ -16,7 +16,7 @@ services:
       - internal
 
   auth:
-    image: baoleme-backend-microservice:latest
+    image: baoleme-backend-microservices:latest
     environment:
       SERVICES: auth
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/baoleme_test
@@ -31,7 +31,7 @@ services:
       - internal
 
   # mail:
-  #   image: baoleme-backend-microservice:latest
+  #   image: baoleme-backend-microservices:latest
   #   environment:
   #     SERVICES: mail
   #   env_file: docker-compose.env
@@ -41,7 +41,7 @@ services:
   #     - internal
 
   oss:
-    image: baoleme-backend-microservice:latest
+    image: baoleme-backend-microservices:latest
     environment:
       SERVICES: oss
     env_file: docker-compose.env
@@ -54,7 +54,7 @@ services:
       - internal
   
   address:
-    image: baoleme-backend-microservice:latest
+    image: baoleme-backend-microservices:latest
     environment:
       SERVICES: address
     env_file: docker-compose.env
