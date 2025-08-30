@@ -264,7 +264,7 @@ const OrderService: ServiceSchema = {
                 }
 
                 // todo: 可能修改的接口名字
-                const cartItems: any = await ctx.call('cart.get', { currentUserId, shopId });
+                const cartItems: any = await ctx.call('cart.getCartItems', { shopId });
                 if (cartItems.length === 0) {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.CART_EMPTY, 400);
                 }
@@ -305,7 +305,7 @@ const OrderService: ServiceSchema = {
                 }
 
                 // todo: 可能修改的接口名字
-                const address: any = await ctx.call('address.getAddressById', { id: addressId, currentUserId });
+                const address: any = await ctx.call('address.getAddressById', { id: addressId });
                 const distance = 0.001 * haversine(
                     { latitude: shop.addressLatitude, longitude: shop.addressLongitude },
                     { latitude: address.coordinate[1]!, longitude: address.coordinate[0]! }
@@ -316,7 +316,7 @@ const OrderService: ServiceSchema = {
                 }
 
                 // todo: 可能修改的接口名字
-                await ctx.call('cart.clearCart', { currentUserId, shopId });
+                await ctx.call('cart.clearCart', { shopId });
 
                 const order = await this.prisma.order.create({
                     data: {
@@ -388,8 +388,6 @@ const OrderService: ServiceSchema = {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
                 }
 
-                const currentUser: any = await ctx.call('user.get', { id: currentUserId });
-
                 const order = await this.prisma.order.findUnique({ where: { id } });
                 if (!order) {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_NOT_FOUND, 404);
@@ -398,10 +396,10 @@ const OrderService: ServiceSchema = {
                 const shop: any = order.shopId ? await ctx.call('shop.get', { id: order.shopId }) : null;
 
                 const stateTransition: [boolean, 'canceledAt' | 'paidAt' | 'preparedAt' | 'finishedAt'][] = [
-                    [currentUser.id === order.customerId && order.status === 'UNPAID' && status === 'canceled', 'canceledAt'],
-                    [currentUser.id === order.customerId && order.status === 'UNPAID' && status === 'preparing', 'paidAt'],
-                    [currentUser.id === shop?.ownerId && order.status === 'PREPARING' && status === 'prepared', 'preparedAt'],
-                    [currentUser.id === order.riderId && order.status === 'DELIVERING' && status === 'finished', 'finishedAt'],
+                    [currentUserId === order.customerId && order.status === 'UNPAID' && status === 'canceled', 'canceledAt'],
+                    [currentUserId === order.customerId && order.status === 'UNPAID' && status === 'preparing', 'paidAt'],
+                    [currentUserId === shop?.ownerId && order.status === 'PREPARING' && status === 'prepared', 'preparedAt'],
+                    [currentUserId === order.riderId && order.status === 'DELIVERING' && status === 'finished', 'finishedAt'],
                 ]
 
                 const permittedStatusProp = stateTransition.find(([permitted]) => permitted)?.[1]
@@ -460,7 +458,6 @@ const OrderService: ServiceSchema = {
             async handler(ctx: Context<deleteOrderRequest, AuthMeta>) {
                 const { id } = ctx.params;
                 const { currentUserId, currentUserRole } = ctx.meta;
-                ctx.emit('order.deleted', { id: 'test' });
 
                 if (!currentUserId) {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
@@ -477,6 +474,8 @@ const OrderService: ServiceSchema = {
                 }
 
                 await this.prisma.order.delete({ where: { id } });
+
+                ctx.emit('order.deleted', { id });
             }
         },
     },
