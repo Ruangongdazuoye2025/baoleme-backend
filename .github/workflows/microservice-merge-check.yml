@@ -25,8 +25,3 @@ jobs:
       # - name: Run tests
       #   run: |
       #     docker container exec baoleme-backend-microservices-api
-
-      - name: Check commit messages
-        uses: wagoid/commitlint-github-action@v6
-        with:
-          configFile: .commitlintrc.js
