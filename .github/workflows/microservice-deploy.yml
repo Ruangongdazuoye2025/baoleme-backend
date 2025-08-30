@@ -40,20 +40,31 @@ jobs:
     - name: Save Docker image
       run: |
         docker image save $env:IMAGE_NAME_LATEST | gzip > baoleme-backend-microservice.tar.gz
+    
+    - name: Prepare deploy files
+      run: |
+        mkdir -p deploy
+        cp baoleme-backend-microservice.tar.gz deploy/
+        cp docker-compose.yml deploy/
+        cp docker-compose.env deploy/
+        cp k8s.yaml deploy/
+
     - name: Upload Docker image
       uses: actions/upload-artifact@v4
       with:
-        name: baoleme-backend-microservice
-        path: baoleme-backend-microservice.tar.gz
+        name: deploy-package
+        path: deploy/
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     steps:
-    - name: Download Docker image
+    - name: Download deployment package
       uses: actions/download-artifact@v4
       with:
-        name: baoleme-backend-microservice
+        name: deploy-package
+        path: deploy
+
     - name: Upload files to server
       uses: wlixcc/SFTP-Deploy-Action@v1.2.6
       with:
@@ -61,8 +72,8 @@ jobs:
         server: ${{ vars.SSH_HOST }}
         port: ${{ vars.SSH_PORT }}
         ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-        local_path: './baoleme-backend-microservice.tar.gz;./docker-compose.yml;./docker-compose.env;k8s.yaml'
-        remote_path: /home/ci/deploy
+        local_path: './deploy'
+        remote_path: /home/ci
     - name: Restart backend service
       uses: appleboy/ssh-action@v1
       with:
@@ -72,5 +83,13 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           cd /home/ci/deploy
+          # 停止并删除现有容器
+          docker compose down --remove-orphans || true
+          # 清理未使用的镜像和数据卷
+          docker system prune -f
+          # 加载新镜像
           docker image load -i baoleme-backend-microservice.tar.gz
-          docker compose up --wait
+          # 启动新服务
+          docker compose up -d --wait
+          # 检查服务状态
+          # docker compose ps
