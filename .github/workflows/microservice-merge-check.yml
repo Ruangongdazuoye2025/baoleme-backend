@@ -1,0 +1,27 @@
+name: Microservice Merge Check
+
+on:
+  pull_request:
+    branches:
+      - microservice-refactor
+
+jobs:
+  merge-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag baoleme-backend-microservices:latest
+      
+      - name: Prepare environment
+        run: cp docker-compose.env scripts/docker-compose.env
+
+      - name: Run docker-compose
+        run: |
+          docker compose -f scripts/ci-compose.yml up -d --wait
+
+      # - name: Run tests
+      #   run: |
+      #     docker container exec baoleme-backend-microservices-api

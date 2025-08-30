@@ -79,13 +79,19 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
 
                     // Shop
                     "GET /shops": "shop.getFilteredGlobalShops",
-                    "GET /user/:id/shops": "shop.getShopByOwnerId",
+                    "GET /user/:id/shops": "shop.getShopsByOwnerId",
                     "POST /shops": "shop.createShop",
                     "GET /shops/:id": "shop.get",
                     "DELETE /shops/:id": "shop.deleteShop",
                     "PATCH /shops/:id/profile": "shop.updateShopProfile",
                     "PATCH /shops/:id/image": "multipart:shop.updateShopImage",
                     "PATCH /shops/:id/owner": "multipart:shop.updateShopOwner",
+                    "POST /shops/:shopId/item-categories": "shop.addItemCategory",
+                    "GET /shops/:shopId/item-categories": "shop.getItemCategories",
+                    "GET /shops/:shopId/item-categories/:categoryId":"shop.getItemCategory",
+                    "PATCH /shops/:shopId/item-categories/:categoryId":"shop.updateItemCategory",
+                    "PATCH /shops/:shopId/item-categories/:categoryId/pos":"shop.updateItemCategoryPos",
+                    "DELETE /shops/:shopId/item-categories/:categoryId":"shop.deleteItemCategory",
 
                     // Item
                     "GET /shops/:shopId/items": "item.getItems",

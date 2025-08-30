@@ -3,9 +3,7 @@ version: "3.3"
 services:
 
   api:
-    build:
-      context: .
-    image: baoleme-backend-services:latest
+    image: baoleme-backend-microservices:latest
     container_name: baoleme-backend-microservices-api
     env_file: docker-compose.env
     environment:
@@ -22,9 +20,7 @@ services:
       - internal
 
   auth:
-    build:
-      context: .
-    image: baoleme-backend-services:latest
+    image: baoleme-backend-microservices:latest
     container_name: baoleme-backend-microservices-auth
     env_file: docker-compose.env
     environment:
@@ -36,9 +32,7 @@ services:
       - internal
 
   mail:
-    build:
-      context: .
-    image: baoleme-backend-services:latest
+    image: baoleme-backend-microservices:latest
     container_name: baoleme-backend-microservices-mail
     env_file: docker-compose.env
     environment:
@@ -49,9 +43,7 @@ services:
       - internal
 
   oss:
-    build:
-      context: .
-    image: baoleme-backend-services:latest
+    image: baoleme-backend-microservices:latest
     container_name: baoleme-backend-microservices-oss
     env_file: docker-compose.env
     environment:
@@ -62,9 +54,7 @@ services:
       - internal
   
   address:
-    build:
-      context: .
-    image: baoleme-backend-services:latest
+    image: baoleme-backend-microservices:latest
     container_name: baoleme-backend-microservices-address
     env_file: docker-compose.env
     environment:

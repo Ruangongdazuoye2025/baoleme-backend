@@ -1,4 +1,34 @@
 #########################################################
+# Database Secrets
+#########################################################
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auth-db-credentials
+type: Opaque
+data:
+  POSTGRES_USER: YXV0aHVzZXI=     # base64 encoded "authuser"
+  POSTGRES_PASSWORD: YXV0aHBhc3M=  # base64 encoded "authpass"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mail-db-credentials
+type: Opaque
+data:
+  POSTGRES_USER: bWFpbHVzZXI=     # base64 encoded "mailuser"
+  POSTGRES_PASSWORD: bWFpbHBhc3M=  # base64 encoded "mailpass"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: address-db-credentials
+type: Opaque
+data:
+  POSTGRES_USER: YWRkcmVzc3VzZXI=     # base64 encoded "addressuser"
+  POSTGRES_PASSWORD: YWRkcmVzc3Bhc3M=  # base64 encoded "addresspass"
+---
+#########################################################
 # Common Environment variables ConfigMap
 #########################################################
 apiVersion: v1
@@ -25,7 +55,7 @@ metadata:
   #  kubernetes.io/ingress.class: nginx
 spec:
   rules:
-  - host: ingress.127.0.0.1.nip.io
+  - host: api.baoleme.xyz
     http:
       paths:
       - path: /
@@ -139,6 +169,20 @@ spec:
         env:
           - name: SERVICES
             value: "auth"
+          - name: POSTGRES_DB
+            value: "authdb"
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                name: auth-db-credentials
+                key: POSTGRES_USER
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: auth-db-credentials
+                key: POSTGRES_PASSWORD
+          - name: POSTGRES_HOST
+            value: "postgres-auth"
         resources:
           limits:
             cpu: "500m"
@@ -180,6 +224,80 @@ spec:
           type: Utilization
           averageUtilization: 80
 ---
+# ########################
+# Auth PostgreSQL Deployment
+# ########################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-auth
+  template:
+    metadata:
+      labels:
+        app: postgres-auth
+    spec:
+      containers:
+      - name: postgres-auth
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "authdb"
+        - name: POSTGRES_USER
+          value: "authuser"
+        - name: POSTGRES_PASSWORD
+          value: "authpass"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-auth-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+      volumes:
+      - name: postgres-auth-data
+        persistentVolumeClaim:
+          claimName: postgres-auth-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-auth-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-auth
+spec:
+  selector:
+    app: postgres-auth
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+# #############
+# Mail Service
+# #############
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -203,6 +321,14 @@ spec:
         env:
         - name: SERVICES
           value: "mail"
+        - name: POSTGRES_DB
+          value: "maildb"
+        - name: POSTGRES_USER
+          value: "mailuser"
+        - name: POSTGRES_PASSWORD
+          value: "mailpass"
+        - name: POSTGRES_HOST
+          value: "postgres-mail"
         resources:
           limits:
             cpu: "500m"
@@ -233,6 +359,75 @@ spec:
         target:
           type: Utilization
           averageUtilization: 75
+---
+# ========================
+# Mail PostgreSQL Deployment
+# ========================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-mail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-mail
+  template:
+    metadata:
+      labels:
+        app: postgres-mail
+    spec:
+      containers:
+      - name: postgres-mail
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "maildb"
+        - name: POSTGRES_USER
+          value: "mailuser"
+        - name: POSTGRES_PASSWORD
+          value: "mailpass"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-mail-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+      volumes:
+      - name: postgres-mail-data
+        persistentVolumeClaim:
+          claimName: postgres-mail-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-mail-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-mail
+spec:
+  selector:
+    app: postgres-mail
+  ports:
+  - port: 5432
+    targetPort: 5432
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -311,6 +506,14 @@ spec:
         env:
         - name: SERVICES
           value: "address"
+        - name: POSTGRES_DB
+          value: "addressdb"
+        - name: POSTGRES_USER
+          value: "addressuser"
+        - name: POSTGRES_PASSWORD
+          value: "addresspass"
+        - name: POSTGRES_HOST
+          value: "postgres-address"
         resources:
           limits:
             cpu: "500m"
@@ -341,6 +544,75 @@ spec:
         target:
           type: Utilization
           averageUtilization: 75
+---
+# ========================
+# Address PostgreSQL Deployment
+# ========================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-address
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-address
+  template:
+    metadata:
+      labels:
+        app: postgres-address
+    spec:
+      containers:
+      - name: postgres-address
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "addressdb"
+        - name: POSTGRES_USER
+          value: "addressuser"
+        - name: POSTGRES_PASSWORD
+          value: "addresspass"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-address-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+      volumes:
+      - name: postgres-address-data
+        persistentVolumeClaim:
+          claimName: postgres-address-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-address-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-address
+spec:
+  selector:
+    app: postgres-address
+  ports:
+  - port: 5432
+    targetPort: 5432
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -382,85 +654,8 @@ spec:
     targetPort: 4222
 ---
 # ==============================================
-# Postgres and Minio for development environment
+# Minio for development environment
 # ==============================================
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres
-spec:
-  serviceName: postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      containers:
-      - name: postgres
-        image: postgres:17
-        env:
-        - name: POSTGRES_PASSWORD
-          value: "postgres"
-        ports:
-        - containerPort: 5432
-        volumeMounts:
-        - name: postgres-data
-          mountPath: /var/lib/postgresql/data
-        - name: postgres-init
-          mountPath: ./scripts/init.sql
-          subPath: init.sql
-        resources:
-          limits:
-            cpu: "500m"
-            memory: "512Mi"
-          requests:
-            cpu: "250m"
-            memory: "256Mi"
-      volumes:
-      - name: postgres-data
-        persistentVolumeClaim:
-          claimName: postgres-pvc
-      - name: postgres-init
-        configMap:
-          name: postgres-init-sql
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-spec:
-  selector:
-    app: postgres
-  ports:
-  - port: 5432
-    targetPort: 5432
-
----
-# ===================================
-# ConfigMap for initializing Postgres
-# ===================================
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-init-sql
-data:
-  init.sql: |
-    # PostgreSQL initialization script
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -666,7 +861,7 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-    - host: auth.localhost
+    - host: auth.baoleme.xyz
       http:
         paths:
           - path: /
@@ -686,7 +881,7 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-    - host: minio.localhost
+    - host: minio.baoleme.xyz
       http:
         paths:
           - path: /
