@@ -375,9 +375,6 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('User not found', 404);
                 }
 
-                if (currentUserRole !== UserRole.MERCHANT && currentUserRole !== UserRole.ADMIN) {
-                    throw new Errors.MoleculerError('Permission denied', 401);
-                }
 
                 await Promise.all(categories.map(async id => {
                     const category = await (this.prisma as PrismaClient).shopCategory.findUnique({ where: { id } });

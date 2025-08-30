@@ -6,65 +6,65 @@ import { AuthMeta } from "../mixins/api-auth.mixin";
 import { Readable } from 'stream';
 
 const getItemsRequestSchema = Joi.object({
-    shopId: Joi.string().required(),
+    shopId: Joi.string().uuid().required(),
     p: Joi.number().integer().min(0).default(0),
     pn: Joi.number().integer().min(1).max(100).default(10)
 });
 
 const getShopCategoryItemsRequestSchema = Joi.object({
-    shopId: Joi.string().required(),
-    categoryId: Joi.string().required(),
+    shopId: Joi.string().uuid().required(),
+    categoryId: Joi.string().uuid().required(),
     p: Joi.number().integer().min(0).default(0),
     pn: Joi.number().integer().min(1).max(100).default(10)
 });
 
 const getItemRequestSchema = Joi.object({
-    id: Joi.string().required()
+    id: Joi.string().uuid().required()
 });
 
 const createItemRequestSchema = Joi.object({
-    shopId: Joi.string().required(),
+    shopId: Joi.string().uuid().required(),
     name: Joi.string().required(),
     description: Joi.string().optional(),
     available: Joi.boolean().default(true),
     stockout: Joi.boolean().default(false),
     price: Joi.number().min(0).required(),
     priceWithoutPromotion: Joi.number().min(0).optional(),
-    categories: Joi.array().items(Joi.string()).default([])
+    categories: Joi.array().items(Joi.string().uuid()).default([])
 });
 
 const updateItemProfileRequestSchema = Joi.object({
-    id: Joi.string().required(),
+    id: Joi.string().uuid().required(),
     name: Joi.string().optional(),
     description: Joi.string().optional(),
     available: Joi.boolean().optional(),
     stockout: Joi.boolean().optional(),
     price: Joi.number().min(0).optional(),
     priceWithoutPromotion: Joi.number().min(0).optional(),
-    categories: Joi.array().items(Joi.string()).optional()
+    categories: Joi.array().items(Joi.string().uuid()).optional()
 });
 
 const updateItemImageRequestSchema = Joi.object({
-    id: Joi.string().required(),
+    id: Joi.string().uuid().required(),
     cover: Joi.binary().optional()
 });
 
 const deleteItemRequestSchema = Joi.object({
-    id: Joi.string().required()
+    id: Joi.string().uuid().required()
 });
 
 const updateItemSaleRequestSchema = Joi.object({
-    itemId: Joi.string().required(),
+    itemId: Joi.string().uuid().required(),
     saleCount: Joi.number().integer().min(0).required()
 });
 
 const updateItemRatingRequestSchema = Joi.object({
-    itemId: Joi.string().required(),
+    itemId: Joi.string().uuid().required(),
     rating: Joi.number().min(0).max(5).required()
 });
 
 const getShopItemIdsRequestSchema = Joi.object({
-    shopId: Joi.string().required()
+    shopId: Joi.string().uuid().required()
 });
 
 interface GetItemsRequest {
@@ -176,7 +176,7 @@ const ItemService: ServiceSchema = {
                     orderBy: { createdAt: 'desc' }
                 });
 
-                return Promise.all(items.map(item => this.itemDataToFullItemInfo(item)));
+                return Promise.all(items.map(item => this.itemDataToFullItemInfo(item, ctx)));
             }
         },
 
@@ -204,7 +204,7 @@ const ItemService: ServiceSchema = {
                     orderBy: { createdAt: 'desc' }
                 });
 
-                return Promise.all(items.map(item => this.itemDataToFullItemInfo(item)));
+                return Promise.all(items.map(item => this.itemDataToFullItemInfo(item, ctx)));
             }
         },
 
@@ -235,7 +235,7 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                return await this.itemDataToFullItemInfo(item);
+                return await this.itemDataToFullItemInfo(item, ctx);
             }
         },
 
@@ -249,7 +249,7 @@ const ItemService: ServiceSchema = {
                 if (!user) {
                     throw new Errors.MoleculerError('Unauthorized', 401);
                 }
-
+                console.log(shopId);
                 const item = await (this.prisma as PrismaClient).item.create({
                     data: {
                         name,
@@ -263,9 +263,10 @@ const ItemService: ServiceSchema = {
                             create: categories?.map((categoryId: string) => ({ categoryId }))
                         }
                     },
+                    include: { itemItemCategories: true }
                 });
 
-                return await this.itemDataToFullItemInfo(item);
+                return await this.itemDataToFullItemInfo(item, ctx);
             }
         },
 
@@ -444,12 +445,11 @@ const ItemService: ServiceSchema = {
             params: getItemRequestSchema as any,
             async handler(ctx: Context<GetItemRequest>) {
                 const { id } = ctx.params;
-
+                
                 const [coverOrigin, coverThumbnail] = await Promise.all([
-                    ctx.call("oss.getObjectUrl", { objectName: `items/${id}/cover.webp` }),
-                    ctx.call("oss.getObjectUrl", { objectName: `items/${id}/cover-thumbnail.webp` }),
+                    ctx.call("oss.getObjectUrl", undefined, { meta: { objectName: `items/${id}/cover.webp` }}),
+                    ctx.call("oss.getObjectUrl", undefined, { meta: { objectName: `items/${id}/cover-thumbnail.webp` }})
                 ]);
-
                 return {
                     cover: { origin: coverOrigin, thumbnail: coverThumbnail }
                 };
@@ -465,13 +465,13 @@ const ItemService: ServiceSchema = {
             };
         },
 
-        async itemDataToFullItemInfo(item: Prisma.ItemGetPayload<{ include: { itemItemCategories: true } }>) {
+        async itemDataToFullItemInfo(item: Prisma.ItemGetPayload<{ include: { itemItemCategories: true } }>, ctx: Context) {
             return {
                 id: item.id,
                 shopId: item.shopId,
                 createdAt: item.createdAt,
                 ...this.itemDataToItemProfile(item),
-                cover:await this.broker.call("item.getItemImageLinks", { id: item.id }),
+                cover:await ctx.call("item.getItemImageLinks", { id: item.id }),
             };
         },
 
