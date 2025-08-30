@@ -4,7 +4,7 @@ import sharp from "sharp";
 import Joi from "joi";
 import { AuthMeta } from "../mixins/api-auth.mixin";
 import { Readable } from 'stream';
-// Schema definitions
+
 const getItemsRequestSchema = Joi.object({
     shopId: Joi.string().required(),
     pageSkip: Joi.number().integer().min(0).default(0),
@@ -156,7 +156,6 @@ const ItemService: ServiceSchema = {
         }
     },
     actions: {
-        // Get items for a shop
         getItems: {
             params: getItemsRequestSchema as any,
             async handler(ctx: Context<GetItemsRequest, { currentUserId: string }>) {
@@ -208,8 +207,8 @@ const ItemService: ServiceSchema = {
         // Get single item
         get: {
             params: getItemRequestSchema as any,
-            async handler(ctx: Context<{ id: string }, { currentUserId: string }>) {
-                const { currentUserId } = ctx.meta;
+            async handler(ctx: Context<{ id: string }, AuthMeta>) {
+                const { currentUserId , currentUserRole} = ctx.meta;
                 const { id } = ctx.params;
 
                 const item = await (this.prisma as PrismaClient).item.findUnique({
@@ -220,13 +219,13 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                const currentUser: { role: string, id: string } = await ctx.call("user.get", { id: currentUserId });
+                const currentUser= await ctx.call("user.get", { id: currentUserId });
                 if (!currentUser) {
                     throw new Errors.MoleculerError('Unauthorized', 401);
                 }
 
-                const shop : {ownerId: string}= await ctx.call("shop.get", { id: item.shopId });
-                const onlyAvailable = currentUser.role !== 'ADMIN' && currentUser.id !== shop.ownerId;
+                const shop :{ownerId: string}= await ctx.call("shop.get", { id: item.shopId });
+                const onlyAvailable = currentUserRole !== UserRole.ADMIN && currentUserId !== shop.ownerId;
 
                 if (onlyAvailable && !item.available) {
                     throw new Errors.MoleculerError('Item not found', 404);
@@ -236,7 +235,6 @@ const ItemService: ServiceSchema = {
             }
         },
 
-        // Create item
         createItem: {
             params: createItemRequestSchema as any,
             async handler(ctx: Context<CreateItemRequest,{currentUserId: string}>) {
@@ -267,11 +265,10 @@ const ItemService: ServiceSchema = {
             }
         },
 
-        // Update item profile
         updateItemProfile: {
             params: updateItemProfileRequestSchema as any,
-            async handler(ctx: Context<UpdateItemProfileRequest, { currentUserId: string }>) {
-                const { currentUserId } = ctx.meta as any;
+            async handler(ctx: Context<UpdateItemProfileRequest, AuthMeta>) {
+                const { currentUserId , currentUserRole} = ctx.meta as any;
                 const { id, name, description, available, stockout, price, priceWithoutPromotion, categories } = ctx.params;
 
                 const item = await (this.prisma as PrismaClient).item.findUnique({ 
@@ -282,11 +279,14 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                const currentUser: { role: string, id: string } = await ctx.call("user.get", { id: currentUserId });
+                const currentUser = await ctx.call("user.get", { id: currentUserId });
                 const shop: {ownerId: string} = await ctx.call("shop.get", { id: item.shopId });
                 
-                if (!currentUser || (currentUser.role !== 'admin' && currentUser.id !== shop.ownerId)) {
-                    throw new Errors.MoleculerError('Permission denied', 403);
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('Unauthorized', 404);
+                }
+                if (currentUserRole !== 'ADMIN' && currentUserId !== shop.ownerId) {
+                    throw new Errors.MoleculerError('Permission denied', 402);
                 }
 
                 const updatedItem = await (this.prisma as PrismaClient).item.update({
@@ -309,20 +309,16 @@ const ItemService: ServiceSchema = {
             }
         },
 
-        // Update item image
         updateItemImage: {
             async handler(ctx: Context<any, AuthMeta & { $params: UpdateItemImageRequest }>) {
                 const stream = ctx.params;
                 const { currentUserId, currentUserRole } = ctx.meta;
                 const { id } = ctx.meta.$params;
                 const { fieldname, mimetype } = ctx.meta as any;
-
-                // 验证文件类型
                 if (!mimetype.startsWith('image/')) {
                     throw new Errors.MoleculerError("Invalid image format", 400);
                 }
 
-                // 获取商品信息以验证权限
                 const item = await (this.prisma as PrismaClient).item.findUnique({ 
                     where: { id } 
                 });
@@ -330,27 +326,21 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                // 获取店铺信息验证权限
-                const shop = await (this.prisma as PrismaClient).shop.findUnique({
-                    where: { id: item.shopId }
-                });
+                const shop :{ownerId: string}= await ctx.call("shop.get", { id: item.shopId });
                 if (!shop) {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                // 权限验证：只有管理员或店铺所有者可以更新商品图片
                 if (currentUserRole !== 'ADMIN' && currentUserId !== shop.ownerId) {
                     throw new Errors.MoleculerError("Forbidden", 403, "FORBIDDEN");
                 }
 
-                // 处理文件流
                 const chunks: Buffer[] = [];
                 for await (const chunk of stream as Readable) {
                     chunks.push(chunk);
                 }
                 const buffer = Buffer.concat(chunks);
 
-                // 根据字段名确定上传的文件类型
                 const [origin, thumbnail] = await Promise.all([
                     ctx.call("oss.putObject", sharp(buffer).toFormat('webp'), { meta: { objectName: `users/${id}/avatar.webp`, contentType: 'image/webp' } }),
                     ctx.call("oss.putObject", sharp(buffer).resize(128, 128).toFormat('webp'), { meta: { objectName: `users/${id}/avatar-thumbnail.webp`, contentType: 'image/webp' } })
@@ -362,9 +352,9 @@ const ItemService: ServiceSchema = {
 
         deleteItem: {
             params: deleteItemRequestSchema as any,
-            async handler(ctx: Context<DeleteItemRequest, { currentUserId: string}>) {
+            async handler(ctx: Context<DeleteItemRequest, AuthMeta>) {
                 const itemId = ctx.params.id;
-                const { currentUserId,} = ctx.meta;
+                const { currentUserId, currentUserRole } = ctx.meta;    
                 
                 const item = await (this.prisma as PrismaClient).item.findUnique({ 
                     where: { id: itemId },
@@ -375,18 +365,19 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                const currentUser :User= await ctx.call("user.get", { id: currentUserId });
-                const shop = await ctx.call("shop.get", { id: item.shopId });
+                const currentUser = await ctx.call("user.get", { id: currentUserId });
+                const shop :{ownerId: string}= await ctx.call("shop.get", { id: item.shopId });
 
-                if (!currentUser || (currentUser.role !== 'ADMIN' )) {
-                    throw new Errors.MoleculerError('Permission denied', 403);
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+                if (currentUserRole !== 'ADMIN' && currentUserId !== shop.ownerId) {
+                    throw new Errors.MoleculerError("Forbidden", 402);
                 }
                 
 
-                // 执行删除操作
                 await (this.prisma as PrismaClient).item.delete({ where: { id: itemId } });
-                
-                // 删除图片文件
+
                 await Promise.all([
                     ctx.call("oss.removeObject", { objectName: `items/${itemId}/cover.webp` }),
                     ctx.call("oss.removeObject", { objectName: `items/${itemId}/cover-thumbnail.webp` }),
@@ -403,7 +394,6 @@ const ItemService: ServiceSchema = {
             }
         },
 
-        // Update item sale count
         updateItemSale: {
             params: updateItemSaleRequestSchema as any,
             async handler(ctx: Context<UpdateItemSaleRequest>) {
@@ -418,7 +408,6 @@ const ItemService: ServiceSchema = {
             }
         },
 
-        // Get shop item IDs
         getShopItemIds: {
             params: getShopItemIdsRequestSchema as any,
             async handler(ctx: Context<GetShopItemIdsRequest>) {
@@ -433,7 +422,6 @@ const ItemService: ServiceSchema = {
             }
         },
 
-        // Update item rating
         updateItemRating: {
             params: updateItemRatingRequestSchema as any,
             async handler(ctx: Context<UpdateItemRatingRequest>) {
@@ -448,7 +436,6 @@ const ItemService: ServiceSchema = {
             }
         },
 
-        // Utility method to get item image links
         getItemImageLinks: {
             params: getItemRequestSchema as any,
             async handler(ctx: Context<GetItemRequest>) {

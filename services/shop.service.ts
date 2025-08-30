@@ -283,42 +283,20 @@ interface DeleteItemCategoryRequest {
 const ShopService: ServiceSchema = {
     name: "shop",
 
-    events: {
-
-        'shopCategory.deleted':{
-            async handler(ctx: Context<{ id:string}>) {
-                const { id: categoryId } = ctx.params;
-                const shops = await (this.prisma as PrismaClient).shop.findMany({
-                    where: {
-                        categories: {
-                            some: { id: categoryId }
-                        }
-                    }
-                });
-                for (const shop of shops) {
-                    await (this.prisma as PrismaClient).shop.update({
-                        where: { id: shop.id },
-                        data: {
-                            categories: {
-                                disconnect: { id: categoryId }
-                            }
-                        }
-                    });
-                }
-
-            }
-        }
-    },
     actions: {
         getFilteredGlobalShops: {
             params: getFilteredGlobalShopsRequestSchema as any,
-            async handler(ctx: Context<GetFilteredGlobalShopsRequest, { currentUserId: string}>) {
-                const { currentUserId } = ctx.meta;
+            async handler(ctx: Context<GetFilteredGlobalShopsRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { pageSkip, pageLimit, filterKeywords, minCreatedAt, maxCreatedAt } = ctx.params;
 
-                const currentUser :User= await ctx.call("user.get", { id: currentUserId });
-                if (currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.get", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+
+                if (currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401)
                 }
 
                 const whereConditions: Prisma.ShopWhereInput[] = [];
@@ -388,13 +366,17 @@ const ShopService: ServiceSchema = {
 
         createShop: {
             params: createShopRequestSchema as any,
-            async handler(ctx: Context<CreateShopRequest, {currentUserId: string}>) {
-                const { currentUserId } = ctx.meta;
+            async handler(ctx: Context<CreateShopRequest, AuthMeta>) {
+                const { currentUserId , currentUserRole } = ctx.meta;
                 const { name, description, categories, address, opened, openTimeStart, openTimeEnd, deliveryThreshold, deliveryPrice, maximumDistance } = ctx.params;
 
                 const user = await ctx.call("user.get", { id: currentUserId });
                 if (!user) {
-                    throw new Errors.MoleculerError('Unauthorized', 401);
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+
+                if (currentUserRole !== UserRole.MERCHANT && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 await Promise.all(categories.map(async id => {
@@ -433,8 +415,8 @@ const ShopService: ServiceSchema = {
 
         deleteShop: {
             params: shopIdRequestSchema as any,
-            async handler(ctx: Context<DeleteShopRequest, {currentUserId: string}>) {
-                const { currentUserId} = ctx.meta;
+            async handler(ctx: Context<DeleteShopRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { id } = ctx.params;
 
                 const shop = await (this.prisma as PrismaClient).shop.findUnique({ 
@@ -449,10 +431,15 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser :User= await ctx.call("user.get", { id: currentUserId });
-                if (currentUserId !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.get", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
                 }
+
+                if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
+                }
+
                 await (this.prisma as PrismaClient).$transaction(async (tx) => {
                     await tx.itemCategory.deleteMany({
                         where: { shopId: id }
@@ -480,8 +467,8 @@ const ShopService: ServiceSchema = {
 
         updateShopProfile: {
             params: updateShopProfileRequestSchema as any,
-            async handler(ctx: Context<UpdateShopProfileRequest, {currentUserId: string}>) {
-                const { currentUserId } = ctx.meta;
+            async handler(ctx: Context<UpdateShopProfileRequest, AuthMeta>) {
+                const { currentUserId , currentUserRole } = ctx.meta;
                 const { id, name, description, categories, address, opened, openTimeStart, openTimeEnd, deliveryThreshold, deliveryPrice, maximumDistance } = ctx.params;
                 let { verified } = ctx.params;
 
@@ -490,10 +477,14 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser :User= await ctx.call("user.get", { id: currentUserId });
+                const currentUser = await ctx.call("user.get", { id: currentUserId });
 
-                if (currentUserId !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+
+                if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 if (categories) {
@@ -505,8 +496,8 @@ const ShopService: ServiceSchema = {
                     }));
                 }
 
-                if (currentUser.role !== 'ADMIN') {
-                    verified = undefined; 
+                if(currentUserRole !== UserRole.ADMIN) {
+                    verified = undefined;
                 }
 
                 const updatedShop = await (this.prisma as PrismaClient).shop.update({
@@ -540,10 +531,10 @@ const ShopService: ServiceSchema = {
         updateShopImage: {
             params: updateShopImageMetaParamsSchema as any,
             async handler(ctx: Context<any, AuthMeta & { $params: UpdateShopImageMeta } & { mimetype: string }>) {
-                const stream = ctx.params; // 文件流
+                const stream = ctx.params; 
                 const { currentUserId, currentUserRole } = ctx.meta;
-                const { id, fieldname } = ctx.meta.$params; // 店铺 ID 和图片类型 (cover, detail, license)
-                const { mimetype } = ctx.meta; // 文件 MIME 类型
+                const { id, fieldname } = ctx.meta.$params; 
+                const { mimetype } = ctx.meta; 
 
                 if (!mimetype.startsWith('image/')) {
                     throw new Errors.MoleculerError("Invalid image format", 400);
@@ -555,7 +546,7 @@ const ShopService: ServiceSchema = {
                 }
 
                 if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                    throw new Errors.MoleculerError('Permission denied', 401, 'FORBIDDEN');
                 }
 
                 const chunks: Buffer[] = [];
@@ -569,12 +560,12 @@ const ShopService: ServiceSchema = {
                 const [originUrl, thumbnailUrl] = await Promise.all([
                     ctx.call("oss.putObject", {
                         objectName: `${objectNameBase}.webp`,
-                        content: sharp(buffer).toFormat('webp'), // 传递 Sharp 实例作为流
+                        content: sharp(buffer).toFormat('webp'), 
                         contentType: 'image/webp'
                     }),
                     ctx.call("oss.putObject", {
                         objectName: `${objectNameBase}-thumbnail.webp`,
-                        content: sharp(buffer).resize(128, 128, { fit: 'outside' }).toFormat('webp'), // 传递 Sharp 实例作为流
+                        content: sharp(buffer).resize(128, 128, { fit: 'outside' }).toFormat('webp'),
                         contentType: 'image/webp'
                     })
                 ]);
@@ -585,8 +576,8 @@ const ShopService: ServiceSchema = {
 
         updateShopOwner: {
             params: updateShopOwnerRequestSchema as any,
-            async handler(ctx: Context<UpdateShopOwnerRequest, {currentUserId: string}>) {
-                const { currentUserId} = ctx.meta;
+            async handler(ctx: Context<UpdateShopOwnerRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { id, ownerId } = ctx.params;
 
                 const shop = await (this.prisma as PrismaClient).shop.findUnique({ where: { id } });
@@ -594,13 +585,15 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser:User = await ctx.call("user.getRole", { id: currentUserId });
-                // 权限检查：只有管理员或当前店主可以更改拥有者
-                if (currentUserId !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
                 }
 
-                // 验证新拥有者是否存在
+                if (currentUserRole !== UserRole.ADMIN && currentUserId !== shop.ownerId) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
+                }
+
                 const newOwner = await ctx.call("user.get", { id: ownerId });
                 if (!newOwner) {
                     throw new Errors.MoleculerError('New owner user not found', 404);
@@ -661,10 +654,8 @@ const ShopService: ServiceSchema = {
             }
         },
 
-        // --- Global Shop Category Actions (全局店铺分类，例如：餐饮、服饰等) ---
-
         getShopCategories: {
-            async handler(ctx: Context<{}, { currentUserId: string}>) {
+            async handler(ctx: Context<{}, AuthMeta>) {
                 return await (this.prisma as PrismaClient).shopCategory.findMany({
                     orderBy: { order: 'asc' }
                 });
@@ -673,14 +664,16 @@ const ShopService: ServiceSchema = {
 
         addShopCategory: {
             params: addShopCategoryRequestSchema as any,
-            async handler(ctx: Context<AddShopCategoryRequest, { currentUserId: string}>) {
-                const { currentUserId} = ctx.meta;
+            async handler(ctx: Context<AddShopCategoryRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { name } = ctx.params;
 
-                const currentUser:User = await ctx.call("user.getRole", { id: currentUserId });
-                // 权限检查：只有管理员可以添加全局店铺分类
-                if (currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
+                if(!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+                if(currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 const maxOrder = (await (this.prisma as PrismaClient).shopCategory.aggregate({
@@ -699,7 +692,7 @@ const ShopService: ServiceSchema = {
 
         getShopCategory: {
             params: shopCategoryIdRequestSchema as any,
-            async handler(ctx: Context<GetShopCategoryRequest, {currentUserId: string}>) {
+            async handler(ctx: Context<GetShopCategoryRequest, AuthMeta>) {
                 const { id } = ctx.params;
                 const category = await (this.prisma as PrismaClient).shopCategory.findUnique({
                     where: { id }
@@ -713,13 +706,16 @@ const ShopService: ServiceSchema = {
 
         updateShopCategory: {
             params: updateShopCategoryRequestSchema as any,
-            async handler(ctx: Context<UpdateShopCategoryRequest, {currentUserId: string}>) {
-                const { currentUserId,} = ctx.meta;
+            async handler(ctx: Context<UpdateShopCategoryRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { id, name } = ctx.params;
 
-                const currentUser:User = await ctx.call("user.getRole", { id: currentUserId });
-                if (currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+                if (currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 const category = await (this.prisma as PrismaClient).shopCategory.findUnique({ where: { id } });
@@ -737,14 +733,16 @@ const ShopService: ServiceSchema = {
 
         updateShopCategoryPos: {
             params: updateShopCategoryPosRequestSchema as any,
-            async handler(ctx: Context<UpdateShopCategoryPosRequest, {currentUserId:string}>) {
-                const { currentUserId } = ctx.meta;
+            async handler(ctx: Context<UpdateShopCategoryPosRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { id, before } = ctx.params;
 
-                const currentUser:User = await ctx.call("user.getRole", { id: currentUserId });
-                // 权限检查：只有管理员可以重新排序全局店铺分类
-                if (currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+                if (currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 const category = await (this.prisma as PrismaClient).shopCategory.findUnique({ where: { id } });
@@ -760,11 +758,10 @@ const ShopService: ServiceSchema = {
                         }
 
                         if (category.order === beforeCategory.order) {
-                            return; // 位置相同，无需更改
+                            return;
                         }
 
                         if (category.order < beforeCategory.order) {
-                            // 向下移动：更新当前位置和目标位置之间的分类的 order
                             await tx.shopCategory.updateMany({
                                 where: {
                                     order: { gt: category.order, lt: beforeCategory.order }
@@ -776,7 +773,6 @@ const ShopService: ServiceSchema = {
                                 data: { order: beforeCategory.order - 1 }
                             });
                         } else {
-                            // 向上移动：更新目标位置和当前位置之间的分类的 order
                             await tx.shopCategory.updateMany({
                                 where: {
                                     order: { lt: category.order, gte: beforeCategory.order }
@@ -789,12 +785,11 @@ const ShopService: ServiceSchema = {
                             });
                         }
                     } else {
-                        // 移动到末尾
                         const maxOrder = (await tx.shopCategory.aggregate({
                             _max: { order: true }
                         }))._max.order!;
                         if (category.order === maxOrder) {
-                            return; // 已在末尾
+                            return;
                         }
                         await tx.shopCategory.updateMany({
                             where: {
@@ -814,14 +809,16 @@ const ShopService: ServiceSchema = {
 
         deleteShopCategory: {
             params: shopCategoryIdRequestSchema as any,
-            async handler(ctx: Context<DeleteShopCategoryRequest, {currentUserId:string}>) {
-                const { currentUserId} = ctx.meta;
+            async handler(ctx: Context<DeleteShopCategoryRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { id } = ctx.params;
 
-                const currentUser:User = await ctx.call("user.getRole", { id: currentUserId });
-                // 权限检查：只有管理员可以删除全局店铺分类
-                if (currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+                if (currentUserId !== currentUserId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 const category = await (this.prisma as PrismaClient).shopCategory.findUnique({ 
@@ -848,8 +845,6 @@ const ShopService: ServiceSchema = {
             }
         },
 
-        // --- Item Category Actions (店铺内的商品分类) ---
-
         getItemCategories: {
             params: getShopItemCategoriesRequestSchema as any,
             async handler(ctx: Context<GetItemCategoriesRequest>) {
@@ -871,8 +866,8 @@ const ShopService: ServiceSchema = {
 
         addItemCategory: {
             params: addItemCategoryRequestSchema as any,
-            async handler(ctx: Context<AddItemCategoryRequest, {currentUserId:string}>) {
-                const { currentUserId} = ctx.meta;
+            async handler(ctx: Context<AddItemCategoryRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { shopId, name } = ctx.params;
 
                 const shop = await (this.prisma as PrismaClient).shop.findUnique({ where: { id: shopId } });
@@ -880,10 +875,12 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser:User = await ctx.call("user.getRole", { id: currentUserId });
-                // 权限检查：只有店主或管理员可以添加商品分类
-                if (currentUserId !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+                if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 const maxOrder = (await (this.prisma as PrismaClient).itemCategory.aggregate({
@@ -915,7 +912,7 @@ const ShopService: ServiceSchema = {
                 const category = await (this.prisma as PrismaClient).itemCategory.findUnique({
                     where: {
                         id: categoryId,
-                        shopId: shopId, // 确保分类属于该店铺
+                        shopId: shopId,
                     },
                 });
                 if (!category) {
@@ -927,8 +924,8 @@ const ShopService: ServiceSchema = {
 
         updateItemCategory: {
             params: updateItemCategoryRequestSchema as any,
-            async handler(ctx: Context<UpdateItemCategoryRequest, {currentUserId:string}>) {
-                const { currentUserId} = ctx.meta;
+            async handler(ctx: Context<UpdateItemCategoryRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { shopId, categoryId, name } = ctx.params;
 
                 const shop = await (this.prisma as PrismaClient).shop.findUnique({ where: { id: shopId } });
@@ -936,10 +933,12 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser:User = await ctx.call("user.getRole", { id: currentUserId });
-                // 权限检查：只有店主或管理员可以更新商品分类
-                if (currentUserId !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+                if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 const category = await (this.prisma as PrismaClient).itemCategory.findUnique({
@@ -962,8 +961,8 @@ const ShopService: ServiceSchema = {
 
         updateItemCategoryPos: {
             params: updateItemCategoryPosRequestSchema as any,
-            async handler(ctx: Context<UpdateItemCategoryPosRequest, {currentUserId:string}>) {
-                const { currentUserId} = ctx.meta;
+            async handler(ctx: Context<UpdateItemCategoryPosRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { shopId, categoryId, before } = ctx.params;
 
                 const shop = await (this.prisma as PrismaClient).shop.findUnique({ where: { id: shopId } });
@@ -971,10 +970,12 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser:User = await ctx.call("user.getRole", { id: currentUserId });
-                // 权限检查：只有店主或管理员可以重新排序商品分类
-                if (currentUserId !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+                if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 const category = await (this.prisma as PrismaClient).itemCategory.findUnique({
@@ -995,11 +996,10 @@ const ShopService: ServiceSchema = {
                         }
 
                         if (category.order === beforeCategory.order) {
-                            return; // 位置相同，无需更改
+                            return;
                         }
 
                         if (category.order < beforeCategory.order) {
-                            // 向下移动：更新当前位置和目标位置之间的分类的 order
                             await tx.itemCategory.updateMany({
                                 where: {
                                     shopId,
@@ -1012,7 +1012,6 @@ const ShopService: ServiceSchema = {
                                 data: { order: beforeCategory.order - 1 }
                             });
                         } else {
-                            // 向上移动：更新目标位置和当前位置之间的分类的 order
                             await tx.itemCategory.updateMany({
                                 where: {
                                     shopId,
@@ -1026,13 +1025,12 @@ const ShopService: ServiceSchema = {
                             });
                         }
                     } else {
-                        // 移动到末尾
                         const maxOrder = (await tx.itemCategory.aggregate({
                             where: { shopId },
                             _max: { order: true }
                         }))._max.order!;
                         if (category.order === maxOrder) {
-                            return; // 已在末尾
+                            return; 
                         }
                         await tx.itemCategory.updateMany({
                             where: {
@@ -1053,8 +1051,8 @@ const ShopService: ServiceSchema = {
 
         deleteItemCategory: {
             params: deleteItemCategoryRequestSchema as any,
-            async handler(ctx: Context<DeleteItemCategoryRequest, {currentUserId:string}>) {
-                const { currentUserId} = ctx.meta;
+            async handler(ctx: Context<DeleteItemCategoryRequest, AuthMeta>) {
+                const { currentUserId, currentUserRole } = ctx.meta;
                 const { shopId, categoryId } = ctx.params;
 
                 const shop = await (this.prisma as PrismaClient).shop.findUnique({ where: { id: shopId } });
@@ -1062,9 +1060,12 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                const currentUser:User = await ctx.call("user.getRole", { id: currentUserId });
-                if (currentUserId !== shop.ownerId && currentUser.role !== 'ADMIN') {
-                    throw new Errors.MoleculerError('Permission denied', 403, 'FORBIDDEN');
+                const currentUser = await ctx.call("user.getRole", { id: currentUserId });
+                if (!currentUser) {
+                    throw new Errors.MoleculerError('User not found', 404);
+                }
+                if (currentUserId !== shop.ownerId && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 401);
                 }
 
                 const category = await (this.prisma as PrismaClient).itemCategory.findUnique({
@@ -1155,3 +1156,5 @@ const ShopService: ServiceSchema = {
         await (this.prisma as PrismaClient).$disconnect();
     }
 };
+
+export default ShopService;
