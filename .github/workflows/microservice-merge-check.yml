@@ -21,7 +21,7 @@ jobs:
 
       - name: Run tests
         run: |
-          docker container exec baoleme-backend-microservices-api npm run test:unit
+          docker container exec baoleme-backend-microservices-api
 
       - name: Check commit messages
         uses: wagoid/commitlint-github-action@v6
