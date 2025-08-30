@@ -29,7 +29,6 @@ model Shop {
   updatedAt         DateTime       @updatedAt
   
   // 保持店铺服务内部的关联
-  items             Item[]
   itemCategories    ItemCategory[]
   
   // 移除跨服务的关联，这些数据将通过服务调用获取
@@ -37,3 +36,21 @@ model Shop {
   // shopHistory         ShopHistory[]
   // shopFavourite       ShopFavourite[]
 }
+
+model ShopCategory {
+  id    String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name  String
+  order Int
+
+  shops Shop[]
+}
+
+model ItemCategory {
+  id    String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name  String
+  order Int
+
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId String @db.Uuid
+}
+
