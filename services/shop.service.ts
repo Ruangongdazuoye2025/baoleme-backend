@@ -25,23 +25,23 @@ const shopIdRequestSchema = Joi.object({
 
 const createShopRequestSchema = Joi.object({
     name: Joi.string().required(),
-    description: Joi.string().optional(),
-    categories: Joi.array().items(Joi.string()).default([]),
+    description: Joi.string().allow('').required(),
+    categories: Joi.array().items(Joi.string()).required(),
     address: Joi.object({
         coordinate: Joi.array().items(Joi.number()).length(2).required(),
         province: Joi.string().required(),
         city: Joi.string().required(),
         district: Joi.string().required(),
         address: Joi.string().required(),
-        name: Joi.string().optional(),
-        tel: Joi.string().optional(),
+        name: Joi.string().required(),
+        tel: Joi.string().required(),
     }).required(),
-    opened: Joi.boolean().default(true),
-    openTimeStart: Joi.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().allow(null), // HH:MM 格式
-    openTimeEnd: Joi.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().allow(null), // HH:MM 格式
-    deliveryThreshold: Joi.number().min(0).default(0),
-    deliveryPrice: Joi.number().min(0).default(0),
-    maximumDistance: Joi.number().min(0).default(0),
+    opened: Joi.boolean().required(),
+    openTimeStart: Joi.number().integer().min(0).max(1440).required(),
+    openTimeEnd: Joi.number().integer().min(0).max(1440).required(),
+    deliveryThreshold: Joi.number().integer().min(0).required(),
+    deliveryPrice: Joi.number().integer().min(0).required(),
+    maximumDistance: Joi.number().min(0).required(),
 });
 
 const updateShopProfileRequestSchema = Joi.object({
@@ -170,8 +170,8 @@ interface CreateShopRequest {
         tel: string;
     };
     opened: boolean;
-    openTimeStart: string;
-    openTimeEnd: string;
+    openTimeStart: number;
+    openTimeEnd: number;
     deliveryThreshold: number;
     deliveryPrice: number;
     maximumDistance: number;
@@ -324,7 +324,7 @@ const ShopService: ServiceSchema = {
                     take: pageLimit,
                     orderBy: { createdAt: 'desc' },
                 });
-                return Promise.all(shops.map(shop => this.shopDataToFullShopInfo(shop)));
+                return Promise.all(shops.map(shop => this.shopDataToFullShopInfo(shop, ctx)));
             }
         },
 
@@ -342,7 +342,7 @@ const ShopService: ServiceSchema = {
                     where: { ownerId },
                     orderBy: { createdAt: 'desc' },
                 });
-                return Promise.all(shops.map(shop => this.shopDataToFullShopInfo(shop)));
+                return Promise.all(shops.map(shop => this.shopDataToFullShopInfo(shop, ctx)));
             }
         },
 
@@ -360,7 +360,7 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                return this.shopDataToFullShopInfo(shop);
+                return this.shopDataToFullShopInfo(shop, ctx);
             }
         },
 
@@ -392,8 +392,8 @@ const ShopService: ServiceSchema = {
                         description,
                         ownerId: currentUserId, 
                         opened,
-                        openTimeStart: openTimeStart ? this.timeToMinutes(openTimeStart) : null,
-                        openTimeEnd: openTimeEnd ? this.timeToMinutes(openTimeEnd) : null,
+                        openTimeStart,
+                        openTimeEnd,
                         deliveryThreshold,
                         deliveryPrice,
                         maximumDistance,
@@ -409,7 +409,7 @@ const ShopService: ServiceSchema = {
                     },
                     include: { categories: true }
                 });
-                return this.shopDataToFullShopInfo(newShop);
+                return this.shopDataToFullShopInfo(newShop, ctx);
             }
         },
 
@@ -524,7 +524,7 @@ const ShopService: ServiceSchema = {
                     },
                     include: { categories: true }
                 });
-                return this.shopDataToFullShopInfo(updatedShop);
+                return this.shopDataToFullShopInfo(updatedShop, ctx);
             }
         },
 
@@ -533,8 +533,8 @@ const ShopService: ServiceSchema = {
             async handler(ctx: Context<any, AuthMeta & { $params: UpdateShopImageMeta } & { mimetype: string }>) {
                 const stream = ctx.params; 
                 const { currentUserId, currentUserRole } = ctx.meta;
-                const { id, fieldname } = ctx.meta.$params; 
-                const { mimetype } = ctx.meta; 
+                const { id } = ctx.meta.$params; 
+                const { mimetype, fieldname } = ctx.meta as any; 
 
                 if (!mimetype.startsWith('image/')) {
                     throw new Errors.MoleculerError("Invalid image format", 400);
@@ -1110,13 +1110,13 @@ const ShopService: ServiceSchema = {
             };
         },
 
-        async shopDataToFullShopInfo(shop: Prisma.ShopGetPayload<{ include: { categories: true } }>) {
+        async shopDataToFullShopInfo(shop: Prisma.ShopGetPayload<{ include: { categories: true } }>, ctx: Context) {
             return {
                 id: shop.id,
                 owner: shop.ownerId,
                 createdAt: shop.createdAt,
                 ...this.shopDataToShopProfile(shop),
-                ...(await this.call("shop.getShopImageLinks", { id: shop.id })),
+                ...(await ctx.call("shop.getShopImageLinks", { id: shop.id }) as any),
                 rating: shop.rating,
                 sale: shop.sale,
                 averagePrice: shop.averagePrice,

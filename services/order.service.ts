@@ -224,7 +224,6 @@ const OrderService: ServiceSchema = {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_NOT_FOUND, 404);
                 }
 
-                // todo: 验证权限要获取店铺信息，需要shop.service，随后再修改
                 const shop: any = order.shopId ? await ctx.call('shop.get', { id: order.shopId}) : null;
             
                 let doOmit = false
@@ -263,7 +262,6 @@ const OrderService: ServiceSchema = {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.SHOP_NOT_OPEN, 403);
                 }
 
-                // todo: 可能修改的接口名字
                 const cartItems: any = await ctx.call('cart.getCartItems', { shopId });
                 if (cartItems.length === 0) {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.CART_EMPTY, 400);
@@ -304,7 +302,6 @@ const OrderService: ServiceSchema = {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_BELOW_MINIMUM, 403);
                 }
 
-                // todo: 可能修改的接口名字
                 const address: any = await ctx.call('address.getAddressById', { id: addressId });
                 const distance = 0.001 * haversine(
                     { latitude: shop.addressLatitude, longitude: shop.addressLongitude },
@@ -315,7 +312,6 @@ const OrderService: ServiceSchema = {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.DELIVERY_DISTANCE_EXCEEDED, 403);
                 }
 
-                // todo: 可能修改的接口名字
                 await ctx.call('cart.clearCart', { shopId });
 
                 const order = await this.prisma.order.create({
