@@ -6,8 +6,6 @@ services:
     environment:
       SERVICES: api
       PORT: 3000
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/baoleme_test
-      JWT_SECRET: test_jwt_secret
     env_file: docker-compose.env
     depends_on:
       postgres:
@@ -36,10 +34,6 @@ services:
     image: baoleme-backend-services:latest
     environment:
       SERVICES: mail
-      SMTP_HOST: smtp.test.com
-      SMTP_PORT: 587
-      SMTP_USER: test_user
-      SMTP_PASSWORD: test_password
     env_file: docker-compose.env
     depends_on:
       - nats
@@ -50,11 +44,6 @@ services:
     image: baoleme-backend-services:latest
     environment:
       SERVICES: oss
-      MINIO_HOST: minio
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: test_user
-      MINIO_SECRET_KEY: test_password
-      MINIO_BUCKET: test-bucket
     env_file: docker-compose.env
     depends_on:
       minio:
@@ -68,8 +57,6 @@ services:
     image: baoleme-backend-services:latest
     environment:
       SERVICES: address
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/baoleme_test
-      AMAP_JSCODE: test_jscode
     env_file: docker-compose.env
     depends_on:
       postgres:
