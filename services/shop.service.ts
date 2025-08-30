@@ -360,7 +360,7 @@ const ShopService: ServiceSchema = {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                return this.shopDataToFullShopInfo(shop, ctx);
+                return await this.shopDataToFullShopInfo(shop, ctx);
             }
         },
 
@@ -374,7 +374,6 @@ const ShopService: ServiceSchema = {
                 if (!user) {
                     throw new Errors.MoleculerError('User not found', 404);
                 }
-
 
                 await Promise.all(categories.map(async id => {
                     const category = await (this.prisma as PrismaClient).shopCategory.findUnique({ where: { id } });
@@ -636,12 +635,12 @@ const ShopService: ServiceSchema = {
             async handler(ctx: Context<GetShopRequest>) {
                 const { id } = ctx.params;
                 const [coverOrigin, coverThumbnail, detailOrigin, detailThumbnail, licenseOrigin, licenseThumbnail] = await Promise.all([
-                    ctx.call("oss.getObjectUrl", { objectName: `shops/${id}/cover.webp` }),
-                    ctx.call("oss.getObjectUrl", { objectName: `shops/${id}/cover-thumbnail.webp` }),
-                    ctx.call("oss.getObjectUrl", { objectName: `shops/${id}/detail.webp` }),
-                    ctx.call("oss.getObjectUrl", { objectName: `shops/${id}/detail-thumbnail.webp` }),
-                    ctx.call("oss.getObjectUrl", { objectName: `shops/${id}/license.webp` }),
-                    ctx.call("oss.getObjectUrl", { objectName: `shops/${id}/license-thumbnail.webp` }),
+                    ctx.call("oss.getObjectUrl", undefined, { meta: {objectName: `shops/${id}/cover.webp` } }),
+                    ctx.call("oss.getObjectUrl", undefined,{ meta: {objectName: `shops/${id}/cover-thumbnail.webp` } }),
+                    ctx.call("oss.getObjectUrl", undefined,{ meta: {objectName: `shops/${id}/detail.webp` } }),
+                    ctx.call("oss.getObjectUrl", undefined,{ meta: {objectName: `shops/${id}/detail-thumbnail.webp` } }),
+                    ctx.call("oss.getObjectUrl", undefined,{ meta: {objectName: `shops/${id}/license.webp` } }),
+                    ctx.call("oss.getObjectUrl", undefined,{ meta: {objectName: `shops/${id}/license-thumbnail.webp` } }),
                 ]);
                 return {
                     cover: { origin: coverOrigin, thumbnail: coverThumbnail },
