@@ -168,6 +168,7 @@ const ItemService: ServiceSchema = {
                     where: { shopId },
                     skip: pageSkip,
                     take: pageLimit,
+                    include: { itemItemCategories: true },
                     orderBy: { createdAt: 'desc' }
                 });
 
@@ -191,7 +192,8 @@ const ItemService: ServiceSchema = {
                     },
                     skip: pageSkip,
                     take: pageLimit,
-                    orderBy: { createdAt: 'desc' }
+                    orderBy: { createdAt: 'desc' },
+                    include: { itemItemCategories: true }
                 });
 
                 return Promise.all(items.map(item => this.itemDataToFullItemInfo(item, ctx)));
@@ -336,7 +338,7 @@ const ItemService: ServiceSchema = {
             params: deleteItemRequestSchema as any,
             async handler(ctx: Context<DeleteItemRequest, AuthMeta>) {
                 const itemId = ctx.params.id;
-                const { currentUserId, currentUserRole } = ctx.meta;    
+                const { currentUserId, currentUserRole } = ctx.meta;
                 
                 const item = await (this.prisma as PrismaClient).item.findUnique({ 
                     where: { id: itemId },
@@ -347,10 +349,10 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                const shop :{ownerId: string}= await ctx.call("shop.get", { id: item.shopId });
+                const shop :{owner: string}= await ctx.call("shop.get", { id: item.shopId });
 
-                if (currentUserRole !== 'ADMIN' && currentUserId !== shop.ownerId) {
-                    throw new Errors.MoleculerError("Forbidden", 402);
+                if (currentUserId !== shop.owner && currentUserRole !== UserRole.ADMIN) {
+                    throw new Errors.MoleculerError('Permission denied', 403);
                 }
                 
 
@@ -365,7 +367,6 @@ const ItemService: ServiceSchema = {
                     itemId: itemId,
                     shopId: item.shopId,
                     categories: item.itemItemCategories.map(ic => ic.categoryId) || [],
-                    deletedBy: currentUserId,
                 });
 
             }
@@ -422,9 +423,7 @@ const ItemService: ServiceSchema = {
                     ctx.call("oss.getObjectUrl", undefined, { meta: { objectName: `items/${id}/cover.webp` }}),
                     ctx.call("oss.getObjectUrl", undefined, { meta: { objectName: `items/${id}/cover-thumbnail.webp` }})
                 ]);
-                return {
-                    cover: { origin: coverOrigin, thumbnail: coverThumbnail }
-                };
+                return { origin: coverOrigin, thumbnail: coverThumbnail }
             }
         }
     },
