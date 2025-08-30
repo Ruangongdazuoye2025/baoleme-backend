@@ -27,6 +27,10 @@ jobs:
       run: |
         docker build . --file Dockerfile --tag $env:IMAGE_NAME
         docker image tag $env:IMAGE_NAME $env:IMAGE_NAME_LATEST
+    
+    - name: Prepare environment
+      run: cp docker-compose.env scripts/docker-compose.env
+
     - name: Run Docker compose
       run: |
         docker compose -f scripts/ci-compose.yml up -d --wait
@@ -50,15 +54,15 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: baoleme-backend-microservice
-    - name: Upload image to server
+    - name: Upload files to server
       uses: wlixcc/SFTP-Deploy-Action@v1.2.6
       with:
         username: ${{ vars.SSH_USER }}
         server: ${{ vars.SSH_HOST }}
         port: ${{ vars.SSH_PORT }}
         ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-        local_path: ./baoleme-backend-microservice.tar.gz
-        remote_path: /home/ci/images
+        local_path: './baoleme-backend-microservice.tar.gz;./docker-compose.yml;./docker-compose.env;k8s.yaml'
+        remote_path: /home/ci/deploy
     - name: Restart backend service
       uses: appleboy/ssh-action@v1
       with:
@@ -67,5 +71,6 @@ jobs:
         port: ${{ vars.SSH_PORT }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          docker image load -i /home/ci/images/baoleme-backend-microservice.tar.gz
-          docker compose -f /home/ci/server/docker-compose.yml up --wait
+          cd /home/ci/deploy
+          docker image load -i baoleme-backend-microservice.tar.gz
+          docker compose up --wait
