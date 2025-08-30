@@ -164,11 +164,6 @@ const ItemService: ServiceSchema = {
                 const pageSkip = p * pn;
                 const pageLimit = pn;
 
-                const user = await ctx.call("user.get", { id: currentUserId });
-                if (!user) {
-                    throw new Errors.MoleculerError('Unauthorized', 401);
-                }
-
                 const items = await (this.prisma as PrismaClient).item.findMany({
                     where: { shopId },
                     skip: pageSkip,
@@ -188,11 +183,6 @@ const ItemService: ServiceSchema = {
                 const { shopId, categoryId, p, pn } = ctx.params;
                 const pageSkip = p * pn;
                 const pageLimit = pn;
-
-                const user = await ctx.call("user.get", { id: currentUserId });
-                if (!user) {
-                    throw new Errors.MoleculerError('Unauthorized', 401);
-                }
 
                 const items = await (this.prisma as PrismaClient).item.findMany({
                     where: {
@@ -223,11 +213,6 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                const currentUser= await ctx.call("user.get", { id: currentUserId });
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('Unauthorized', 401);
-                }
-
                 const shop :{ownerId: string}= await ctx.call("shop.get", { id: item.shopId });
                 const onlyAvailable = currentUserRole !== UserRole.ADMIN && currentUserId !== shop.ownerId;
 
@@ -245,10 +230,6 @@ const ItemService: ServiceSchema = {
                 const { currentUserId } = ctx.meta as any;
                 const { shopId, name, description, available, stockout, price, priceWithoutPromotion, categories } = ctx.params;
 
-                const user = await ctx.call("user.get", { id: currentUserId });
-                if (!user) {
-                    throw new Errors.MoleculerError('Unauthorized', 401);
-                }
                 console.log(shopId);
                 const item = await (this.prisma as PrismaClient).item.create({
                     data: {
@@ -284,14 +265,10 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                const currentUser = await ctx.call("user.get", { id: currentUserId });
-                const shop: {ownerId: string} = await ctx.call("shop.get", { id: item.shopId });
+                const shop: {owner: string} = await ctx.call("shop.get", { id: item.shopId });
                 
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('Unauthorized', 404);
-                }
-                if (currentUserRole !== 'ADMIN' && currentUserId !== shop.ownerId) {
-                    throw new Errors.MoleculerError('Permission denied', 402);
+                if (currentUserRole !== 'ADMIN' && currentUserId !== shop.owner) {
+                    throw new Errors.MoleculerError('Permission denied', 403);
                 }
 
                 const updatedItem = await (this.prisma as PrismaClient).item.update({
@@ -370,12 +347,8 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                const currentUser = await ctx.call("user.get", { id: currentUserId });
                 const shop :{ownerId: string}= await ctx.call("shop.get", { id: item.shopId });
 
-                if (!currentUser) {
-                    throw new Errors.MoleculerError('User not found', 404);
-                }
                 if (currentUserRole !== 'ADMIN' && currentUserId !== shop.ownerId) {
                     throw new Errors.MoleculerError("Forbidden", 402);
                 }
@@ -395,7 +368,6 @@ const ItemService: ServiceSchema = {
                     deletedBy: currentUserId,
                 });
 
-                return { success: true };
             }
         },
 
