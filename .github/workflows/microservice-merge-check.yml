@@ -1,0 +1,29 @@
+name: Microservice Merge Check
+
+on:
+  pull_request:
+    branches:
+      - microservice-refactor
+
+jobs:
+  merge-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag baoleme-backend-services:latest
+
+      - name: Run docker-compose
+        run: |
+          docker compose -f scripts/ci-compose.yml up -d --wait
+
+      - name: Run tests
+        run: |
+          docker container exec baoleme-backend-services:latest npm run test:unit
+
+      - name: Check commit messages
+        uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: .commitlintrc.js

@@ -1,0 +1,113 @@
+version: "3.3"
+
+services:
+  api:
+    image: baoleme-backend-services:latest
+    environment:
+      SERVICES: api
+      PORT: 3000
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/baoleme_test
+      JWT_SECRET: test_jwt_secret
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    networks:
+      - internal
+
+  auth:
+    image: baoleme-backend-services:latest
+    environment:
+      SERVICES: auth
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/baoleme_test
+      JWT_SECRET: test_jwt_secret
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    networks:
+      - internal
+
+  mail:
+    image: baoleme-backend-services:latest
+    environment:
+      SERVICES: mail
+      SMTP_HOST: smtp.test.com
+      SMTP_PORT: 587
+      SMTP_USER: test_user
+      SMTP_PASSWORD: test_password
+    depends_on:
+      - nats
+    networks:
+      - internal
+
+  oss:
+    image: baoleme-backend-services:latest
+    environment:
+      SERVICES: oss
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: test_user
+      MINIO_SECRET_KEY: test_password
+      MINIO_BUCKET: test-bucket
+    depends_on:
+      minio:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    networks:
+      - internal
+  
+  address:
+    image: baoleme-backend-services:latest
+    environment:
+      SERVICES: address
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/baoleme_test
+      AMAP_JSCODE: test_jscode
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    networks:
+      - internal
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server --console-address ':9001' /data
+    environment:
+      - MINIO_ROOT_USER=test_user
+      - MINIO_ROOT_PASSWORD=test_password
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:17
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=baoleme_test
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'baoleme_test']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  nats:
+    image: nats:2
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
