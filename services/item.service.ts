@@ -216,7 +216,7 @@ const ItemService: ServiceSchema = {
                 const { id } = ctx.params;
 
                 const item = await (this.prisma as PrismaClient).item.findUnique({
-                    where: { id },
+                    where: { id }, include: { itemItemCategories: true }
                 });
 
                 if (!item) {

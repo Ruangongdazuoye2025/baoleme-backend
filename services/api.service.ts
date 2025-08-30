@@ -67,7 +67,7 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
 
                     // Order
                     "GET /orders/as-customer": "order.getOrdersAsCustomer",
-                    "GET /orders/as-shop/:shopId": "order.getOrdersAsShop",
+                    "GET /orders/as-shop/:id": "order.getOrdersAsShop",
                     "GET /orders/as-rider": "order.getOrdersAsRider",
                     "GET /orders": "order.getOrders",
                     "GET /orders/:id": "order.getOrderById",

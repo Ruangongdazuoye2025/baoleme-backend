@@ -1,7 +1,7 @@
 import { Context, ServiceSchema, Errors } from "moleculer";
 import Joi from "joi";
 import { AuthMeta } from "../mixins/api-auth.mixin";
-import { OrderStatus, OrderItem, Order, Prisma} from "@prisma/client";
+import { OrderStatus, OrderItem, Order, Prisma, PrismaClient} from "@prisma/client";
 import { OrderData } from "../types/order.type";
 import haversine from 'haversine-distance';
 
@@ -23,13 +23,13 @@ type Status = 'unpaid' | 'preparing' | 'prepared' | 'delivering' | 'finished' | 
 
 const getOrdersAsShopSchema = Joi.object({
     id: Joi.string().uuid().required(),
-    p: Joi.number().integer().min(1).max(100).default(10).optional(),
+    p: Joi.number().integer().min(0).max(100).default(10).optional(),
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
 
 const getOrdersSchema = Joi.object({
-    p: Joi.number().integer().min(1).max(100).default(10).optional(),
+    p: Joi.number().integer().min(0).max(100).default(10).optional(),
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
@@ -41,7 +41,7 @@ const getOrderByIdSchema = Joi.object({
 const createOrderSchema = Joi.object({
     shopId: Joi.string().uuid().required(),
     addressId: Joi.string().uuid().required(),
-    note: Joi.string().required(),
+    note: Joi.string().max(100).allow('').required(),
 })
 
 const updateOrderRiderSchema = Joi.object({
@@ -125,14 +125,16 @@ const OrderService: ServiceSchema = {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.UNAUTHORIZED, 401);
                 }
 
-                const orders = await Promise.all(this.prisma.order.findMany({
-                    where: { customerId: currentUserId, status: s},
+                const orders = await (this.prisma as PrismaClient).order.findMany({
                     skip: pageSkip,
                     take: pageLimit,
-                    orderBy: { createAt: 'desc'},
-                }).map(async (order: any) => await this.orderDataToOrderInfo(order)));
+                    where: { customerId: currentUserId, status: this.toOrderStatus(s) },
+                    orderBy: { createdAt: 'desc' }
+                });
 
-                return orders;
+                return await Promise.all(orders.map(async order => 
+                    await this.orderDataToOrderInfo(order, ctx)
+                ))
             }
         },
 
@@ -153,14 +155,16 @@ const OrderService: ServiceSchema = {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
                 }
 
-                const orders = await Promise.all(this.prisma.order.findMany({
-                    where: { shopId: id, status: s },
+                const orders = await (this.prisma as PrismaClient).order.findMany({
                     skip: pageSkip,
                     take: pageLimit,
+                    where: { shopId: id, status: this.toOrderStatus(s) },
                     orderBy: { createdAt: 'desc' }
-                }).map(async (order: any) => await this.orderDataToOrderInfo(order)));
+                });
 
-                return orders;
+                return await Promise.all(orders.map(async order => 
+                    await this.orderDataToOrderInfo(order, ctx)
+                ))
             }
         },
 
@@ -176,14 +180,16 @@ const OrderService: ServiceSchema = {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.UNAUTHORIZED, 401);
                 }
 
-                const orders = await Promise.all(this.prisma.order.findMany({
-                    where: { riderId: currentUserId, status: s },
+                const orders = await (this.prisma as PrismaClient).order.findMany({
                     skip: pageSkip,
                     take: pageLimit,
+                    where: { riderId: currentUserId, status: this.toOrderStatus(s) },
                     orderBy: { createdAt: 'desc' }
-                }).map(async (order: any) => await this.orderDataToOrderInfo(order)));
+                });
 
-                return orders;
+                return await Promise.all(orders.map(async order => 
+                    await this.orderDataToOrderInfo(order, ctx)
+                ))
             }
         },
 
@@ -198,15 +204,17 @@ const OrderService: ServiceSchema = {
                 if (!currentUserId || currentUserRole !== 'ADMIN') {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.UNAUTHORIZED, 401);
                 }
-                
-                const orders = await Promise.all(this.prisma.order.findMany({
+
+                const orders = await (this.prisma as PrismaClient).order.findMany({
                     skip: pageSkip,
                     take: pageLimit,
-                    where: { status: s },
+                    where: { status: this.toOrderStatus(s) },
                     orderBy: { createdAt: 'desc' }
-                }).map(async (order: any) => await this.orderDataToOrderInfo(order)));
+                });
 
-                return orders;
+                return await Promise.all(orders.map(async order => 
+                    await this.orderDataToOrderInfo(order, ctx)
+                ))
             }
         },
 
@@ -234,7 +242,7 @@ const OrderService: ServiceSchema = {
                         doOmit = true
                     }
                 }
-                return doOmit ? this.orderDataToOmittedOrderInfo(order) : await this.orderDataToOrderInfo(order);
+                return doOmit ? this.orderDataToOmittedOrderInfo(order) : await this.orderDataToOrderInfo(order, ctx);
             }
         },
 
@@ -249,20 +257,20 @@ const OrderService: ServiceSchema = {
                 }
 
                 const shop: any = await ctx.call('shop.get', { id: shopId });
-                if (!shop || shop.verified) {
+                if (!shop || !shop.verified) {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.SHOP_NOT_FOUND, 404);
                 }
                 const now = new Date();
                 const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
                 const openMinutes = shop.openTimeStart
                 const closeMinutes = shop.openTimeEnd
-
+                
                 let isOpen = shop.opened && (closeMinutes > openMinutes ? nowMinutes >= openMinutes && nowMinutes < closeMinutes : nowMinutes >= openMinutes || nowMinutes < closeMinutes)
                 if (!isOpen) {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.SHOP_NOT_OPEN, 403);
                 }
 
-                const cartItems: any = await ctx.call('cart.getCartItems', { shopId });
+                const cartItems: any = await ctx.call('cart.getCartItems', { id: shopId });
                 if (cartItems.length === 0) {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.CART_EMPTY, 400);
                 }
@@ -312,7 +320,7 @@ const OrderService: ServiceSchema = {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.DELIVERY_DISTANCE_EXCEEDED, 403);
                 }
 
-                await ctx.call('cart.clearCart', { shopId });
+                await ctx.call('cart.clearCart', { id: shopId });
 
                 const order = await this.prisma.order.create({
                     data: {
@@ -322,14 +330,14 @@ const OrderService: ServiceSchema = {
                         total: shop.deliveryPrice + total,
                         note,
                         items: { create: orderItems },
-                        shopLatitude: shop.addressLatitude,
-                        shopLongitude: shop.addressLongitude,
-                        shopProvince: shop.addressProvince,
-                        shopCity: shop.addressCity,
-                        shopDistrict: shop.addressDistrict,
-                        shopAddress: shop.addressAddress,
-                        shopName: shop.name, // 修正：使用 shop.name 而不是 shop.addressName
-                        shopTel: shop.addressTel,
+                        shopLatitude: shop.address.coordinate[0],
+                        shopLongitude: shop.address.coordinate[1],
+                        shopProvince: shop.address.province,
+                        shopCity: shop.address.city,
+                        shopDistrict: shop.address.district,
+                        shopAddress: shop.address.address,
+                        shopName: shop.address.name, // 修正：使用 shop.name 而不是 shop.addressName
+                        shopTel: shop.address.tel,
                         customerLatitude: address.coordinate[1]!,
                         customerLongitude: address.coordinate[0]!,
                         customerProvince: address.province,
@@ -341,7 +349,7 @@ const OrderService: ServiceSchema = {
                     }
                 })
 
-                return await this.orderDataToOrderInfo(order);
+                return await this.orderDataToOrderInfo(order, ctx);
             }
         },
 
@@ -370,7 +378,7 @@ const OrderService: ServiceSchema = {
                     data: { riderId: currentUserId, status: 'DELIVERING', deliveredAt: new Date() }
                 });
 
-                return await this.orderDataToOrderInfo(updatedOrder)
+                return await this.orderDataToOrderInfo(updatedOrder, ctx)
             }
         },
 
@@ -394,7 +402,7 @@ const OrderService: ServiceSchema = {
                 const stateTransition: [boolean, 'canceledAt' | 'paidAt' | 'preparedAt' | 'finishedAt'][] = [
                     [currentUserId === order.customerId && order.status === 'UNPAID' && status === 'canceled', 'canceledAt'],
                     [currentUserId === order.customerId && order.status === 'UNPAID' && status === 'preparing', 'paidAt'],
-                    [currentUserId === shop?.ownerId && order.status === 'PREPARING' && status === 'prepared', 'preparedAt'],
+                    [currentUserId === shop?.owner && order.status === 'PREPARING' && status === 'prepared', 'preparedAt'],
                     [currentUserId === order.riderId && order.status === 'DELIVERING' && status === 'finished', 'finishedAt'],
                 ]
 
@@ -404,13 +412,13 @@ const OrderService: ServiceSchema = {
                     const ret = await this.prisma.order.update({
                         where: { id },
                         data: {
-                            status: status,
+                            status: this.toOrderStatus(status),
                             [permittedStatusProp]: new Date(),
                         }
                     })
                     if (ret.status === 'FINISHED')
-                        await this.updateItemsSale(ret.id, ret.shopId!)
-                    return await this.orderDataToOrderInfo(ret)
+                        await this.updateItemsSale(ret.id, ret.shopId!, ctx)
+                    return await this.orderDataToOrderInfo(ret, ctx)
                 } else {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.PERMISSION_DENIED, 403);
                 }
@@ -445,7 +453,7 @@ const OrderService: ServiceSchema = {
                     data: { deliveryLatitude: latitude, deliveryLongitude: longitude }
                 });
 
-                return await this.orderDataToOrderInfo(updatedOrder)
+                return await this.orderDataToOrderInfo(updatedOrder, ctx)
             }
         },
 
@@ -477,7 +485,7 @@ const OrderService: ServiceSchema = {
     },
 
     methods: {
-        async orderDataToOrderInfo(order: OrderData) {
+        async orderDataToOrderInfo(order: OrderData, ctx: Context) {
             // 获取订单项（不包含关联数据）
             const orderItems = await this.prisma.orderItem.findMany({
                 where: { orderId: order.id }
@@ -498,7 +506,7 @@ const OrderService: ServiceSchema = {
                 items: await Promise.all(orderItems.map(async (item: { itemId: any; name: any; quantity: any; price: any; }) => ({
                     id: item.itemId,
                     name: item.name,
-                    cover: await this.getOrderItemCoverLinks(item.itemId ?? '0'),
+                    cover: await this.getOrderItemCoverLinks(item.itemId ?? '0', ctx),
                     quantity: item.quantity,
                     price: item.price,
                 }))),
@@ -576,14 +584,15 @@ const OrderService: ServiceSchema = {
             }
         },
 
-        async getOrderItemCoverLinks(id: string) {
+        async getOrderItemCoverLinks(id: string, ctx: Context) {
             const [origin, thumbnail] = await Promise.all([
-                this.ossService.getObjectUrl(`items/${id}/cover.webp`),
-                this.ossService.getObjectUrl(`items/${id}/cover-thumbnail.webp`)])
+                ctx.call("oss.getObjectUrl", undefined, { meta: {objectName: `items/${id}/cover.webp` } }),
+                ctx.call("oss.getObjectUrl", undefined, { meta: {objectName: `items/${id}/cover-thumbnail.webp` } }),
+                ])
             return { origin, thumbnail }
         },
 
-        async updateItemsSale(orderId: string, shopId: string) {
+        async updateItemsSale(orderId: string, shopId: string, ctx: Context) {
             const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
             
             // 获取订单项（不包含关联数据）
@@ -618,7 +627,7 @@ const OrderService: ServiceSchema = {
             }
             
             // 计算店铺销量
-            const shopItemIds = await this.itemService.getShopItemIds(shopId)
+            const shopItemIds = await ctx.call("shop.getShopItemIds", { shopId })
             const shopOrderSum = (await this.prisma.orderItem.aggregate({
                 _sum: { quantity: true },
                 where: {
@@ -643,6 +652,17 @@ const OrderService: ServiceSchema = {
                 }
             })
         },
+        toOrderStatus(status: Status | undefined): OrderStatus | undefined {
+            return status ? status.toUpperCase() as OrderStatus : undefined
+        },
+    },
+    
+    async created() {
+        this.prisma = new PrismaClient();
+    },
+
+    async stopped() {
+            await (this.prisma as PrismaClient).$disconnect();
     }
 }
 

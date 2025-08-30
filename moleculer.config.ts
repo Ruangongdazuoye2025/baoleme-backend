@@ -16,7 +16,10 @@ class JoiValidator extends Validator {
         const res = schema.validate(params);
         if (res.error)
             throw new Errors.ValidationError(res.error.message, "", res.error.details);
-
+        const value = res.value;
+        for (const key in value) {
+            params[key] = value[key];
+        }
         return true;
     }
 }
