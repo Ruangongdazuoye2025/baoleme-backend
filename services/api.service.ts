@@ -86,6 +86,16 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "PATCH /shops/:id/profile": "shop.updateShopProfile",
                     "PATCH /shops/:id/image": "multipart:shop.updateShopImage",
                     "PATCH /shops/:id/owner": "multipart:shop.updateShopOwner",
+
+                    // Item
+                    "GET /shops/:shopId/items": "item.getItems",
+                    "GET /shops/:shopId/categories/:categoryId/items": "item.getShopCategoryItems",
+                    "GET /items/:id": "item.get",
+                    "POST /shops/:shopId/items": "item.createItem",
+                    "PATCH /items/:id/profile": "item.updateItemProfile",
+                    "PATCH /items/:id/image": "multipart:item.updateItemImage",
+                    "DELETE /items/:id": "item.deleteItem",
+                    
                 },
                 onAfterCall(ctx, route, req, res, data) {
                     if (!data) {

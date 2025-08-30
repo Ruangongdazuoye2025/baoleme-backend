@@ -7,15 +7,15 @@ import { Readable } from 'stream';
 
 const getItemsRequestSchema = Joi.object({
     shopId: Joi.string().required(),
-    pageSkip: Joi.number().integer().min(0).default(0),
-    pageLimit: Joi.number().integer().min(1).max(100).default(20)
+    p: Joi.number().integer().min(0).default(0),
+    pn: Joi.number().integer().min(1).max(100).default(10)
 });
 
 const getShopCategoryItemsRequestSchema = Joi.object({
     shopId: Joi.string().required(),
     categoryId: Joi.string().required(),
-    pageSkip: Joi.number().integer().min(0).default(0),
-    pageLimit: Joi.number().integer().min(1).max(100).default(20)
+    p: Joi.number().integer().min(0).default(0),
+    pn: Joi.number().integer().min(1).max(100).default(10)
 });
 
 const getItemRequestSchema = Joi.object({
@@ -69,15 +69,15 @@ const getShopItemIdsRequestSchema = Joi.object({
 
 interface GetItemsRequest {
     shopId: string;
-    pageSkip: number;
-    pageLimit: number;
+    p: number;
+    pn: number;
 }
 
 interface GetShopCategoryItemsRequest {
     shopId: string;
     categoryId: string;
-    pageSkip: number;
-    pageLimit: number;
+    p: number;
+    pn: number;
 }
 
 interface GetItemRequest {
@@ -160,7 +160,9 @@ const ItemService: ServiceSchema = {
             params: getItemsRequestSchema as any,
             async handler(ctx: Context<GetItemsRequest, { currentUserId: string }>) {
                 const { currentUserId } = ctx.meta ;
-                const { shopId, pageSkip, pageLimit } = ctx.params;
+                const { shopId, p, pn } = ctx.params;
+                const pageSkip = p * pn;
+                const pageLimit = pn;
 
                 const user = await ctx.call("user.get", { id: currentUserId });
                 if (!user) {
@@ -183,7 +185,9 @@ const ItemService: ServiceSchema = {
             params: getShopCategoryItemsRequestSchema as any,
             async handler(ctx: Context<GetShopCategoryItemsRequest, { currentUserId: string }>) {
                 const { currentUserId } = ctx.meta;
-                const { shopId, categoryId, pageSkip, pageLimit } = ctx.params;
+                const { shopId, categoryId, p, pn } = ctx.params;
+                const pageSkip = p * pn;
+                const pageLimit = pn;
 
                 const user = await ctx.call("user.get", { id: currentUserId });
                 if (!user) {
@@ -231,7 +235,7 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                return Promise.all(this.itemDataToFullItemInfo(item));
+                return await this.itemDataToFullItemInfo(item);
             }
         },
 
@@ -261,7 +265,7 @@ const ItemService: ServiceSchema = {
                     },
                 });
 
-                return Promise.all(this.itemDataToFullItemInfo(item));
+                return await this.itemDataToFullItemInfo(item);
             }
         },
 
@@ -315,7 +319,7 @@ const ItemService: ServiceSchema = {
                 const { currentUserId, currentUserRole } = ctx.meta;
                 const { id } = ctx.meta.$params;
                 const { fieldname, mimetype } = ctx.meta as any;
-                if (!mimetype.startsWith('image/')) {
+                if (!mimetype.startsWith('image/') || fieldname !== "cover") {
                     throw new Errors.MoleculerError("Invalid image format", 400);
                 }
 
@@ -342,8 +346,8 @@ const ItemService: ServiceSchema = {
                 const buffer = Buffer.concat(chunks);
 
                 const [origin, thumbnail] = await Promise.all([
-                    ctx.call("oss.putObject", sharp(buffer).toFormat('webp'), { meta: { objectName: `users/${id}/avatar.webp`, contentType: 'image/webp' } }),
-                    ctx.call("oss.putObject", sharp(buffer).resize(128, 128).toFormat('webp'), { meta: { objectName: `users/${id}/avatar-thumbnail.webp`, contentType: 'image/webp' } })
+                    ctx.call("oss.putObject", sharp(buffer).toFormat('webp'), { meta: { objectName: `items/${id}/cover.webp`, contentType: 'image/webp' } }),
+                    ctx.call("oss.putObject", sharp(buffer).resize(128, 128).toFormat('webp'), { meta: { objectName: `items/${id}/cover-thumbnail.webp`, contentType: 'image/webp' } })
                 ])
 
                 return { origin, thumbnail }

@@ -23,14 +23,14 @@ type Status = 'unpaid' | 'preparing' | 'prepared' | 'delivering' | 'finished' | 
 
 const getOrdersAsShopSchema = Joi.object({
     id: Joi.string().uuid().required(),
-    p: Joi.number().integer().optional(),
-    pn: Joi.number().integer().optional(),
+    p: Joi.number().integer().min(1).max(100).default(10).optional(),
+    pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
 
 const getOrdersSchema = Joi.object({
-    p: Joi.number().integer().optional(),
-    pn: Joi.number().integer().optional(),
+    p: Joi.number().integer().min(1).max(100).default(10).optional(),
+    pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
 
@@ -64,15 +64,15 @@ const deleteOrderSchema = Joi.object({
 })
 
 interface GetOrdersRequest {
-    p?: number;
-    pn?: number;
+    p: number;
+    pn: number;
     s?: Status;
 }
 
 interface GetOrdersAsShopRequest {
     id: string;
-    p?: number;
-    pn?: number;
+    p: number;
+    pn: number;
     s?: Status;
 }
 
@@ -118,7 +118,7 @@ const OrderService: ServiceSchema = {
             async handler(ctx: Context<GetOrdersRequest, AuthMeta>) {
                 const { p, pn, s } = ctx.params;
                 const { currentUserId, currentUserRole } = ctx.meta;
-                const pageSkip = p && pn ? (p - 1) * pn : undefined;
+                const pageSkip = p * pn
                 const pageLimit = pn;
 
                 if (!currentUserId) {
@@ -141,7 +141,7 @@ const OrderService: ServiceSchema = {
             async handler(ctx: Context<GetOrdersAsShopRequest, AuthMeta>) {
                 const { id, p, pn, s } = ctx.params;
                 const { currentUserId, currentUserRole } = ctx.meta;
-                const pageSkip = p && pn ? (p - 1) * pn : undefined;
+                const pageSkip = p * pn
                 const pageLimit = pn;
 
                 if (!currentUserId) {
@@ -169,7 +169,7 @@ const OrderService: ServiceSchema = {
             async handler(ctx: Context<GetOrdersRequest, AuthMeta>) {
                 const { p, pn, s } = ctx.params;
                 const { currentUserId, currentUserRole } = ctx.meta;
-                const pageSkip = p && pn ? (p - 1) * pn : undefined;
+                const pageSkip = p * pn
                 const pageLimit = pn;
 
                 if (!currentUserId) {
@@ -192,7 +192,7 @@ const OrderService: ServiceSchema = {
             async handler(ctx: Context<GetOrdersRequest, AuthMeta>) {
                 const { p, pn, s } = ctx.params;
                 const { currentUserId, currentUserRole } = ctx.meta;
-                const pageSkip = p && pn ? (p - 1) * pn : undefined;
+                const pageSkip = p * pn
                 const pageLimit = pn;
 
                 if (!currentUserId || currentUserRole !== 'ADMIN') {
