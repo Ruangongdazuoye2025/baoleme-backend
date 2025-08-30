@@ -215,8 +215,8 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                const shop :{ownerId: string}= await ctx.call("shop.get", { id: item.shopId });
-                const onlyAvailable = currentUserRole !== UserRole.ADMIN && currentUserId !== shop.ownerId;
+                const shop :{owner: string}= await ctx.call("shop.get", { id: item.shopId });
+                const onlyAvailable = currentUserRole !== UserRole.ADMIN && currentUserId !== shop.owner;
 
                 if (onlyAvailable && !item.available) {
                     throw new Errors.MoleculerError('Item not found', 404);
@@ -310,12 +310,12 @@ const ItemService: ServiceSchema = {
                     throw new Errors.MoleculerError('Item not found', 404);
                 }
 
-                const shop :{ownerId: string}= await ctx.call("shop.get", { id: item.shopId });
+                const shop :{owner: string}= await ctx.call("shop.get", { id: item.shopId });
                 if (!shop) {
                     throw new Errors.MoleculerError('Shop not found', 404);
                 }
 
-                if (currentUserRole !== 'ADMIN' && currentUserId !== shop.ownerId) {
+                if (currentUserRole !== 'ADMIN' && currentUserId !== shop.owner) {
                     throw new Errors.MoleculerError("Forbidden", 403, "FORBIDDEN");
                 }
 
