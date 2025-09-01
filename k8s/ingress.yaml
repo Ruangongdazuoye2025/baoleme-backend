@@ -8,10 +8,10 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-  - host: api.baoleme.xyz
+  - host: baoleme.xyz
     http:
       paths:
-      - path: /
+      - path: /api
         pathType: Prefix
         backend:
           service:
@@ -30,10 +30,10 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: api.baoleme.xyz   # 修改域名
+    - host: baoleme.xyz
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
@@ -49,10 +49,10 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: auth.baoleme.xyz
+    - host: baoleme.xyz
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
@@ -68,10 +68,10 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: mail.baoleme.xyz
+    - host: baoleme.xyz
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
@@ -87,10 +87,10 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: minio.baoleme.xyz
+    - host: baoleme.xyz
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
@@ -106,10 +106,10 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: services.baoleme.xyz
+    - host: baoleme.xyz
       http:
         paths:
-          - path: /cart
+          - path: /api
             pathType: Prefix
             backend:
               service:
@@ -139,10 +139,10 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: business.baoleme.xyz
+    - host: baoleme.xyz
       http:
         paths:
-          - path: /order
+          - path: /api
             pathType: Prefix
             backend:
               service:
@@ -154,5 +154,43 @@ spec:
             backend:
               service:
                 name: order-shop
+                port:
+                  number: 3000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: address-ingress
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: baoleme.xyz
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: address
+                port:
+                  number: 3000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: user-review-ingress
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: baoleme.xyz
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: user-review
                 port:
                   number: 3000
