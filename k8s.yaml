@@ -41,6 +41,7 @@ data:
   SERVICEDIR: services
   TRANSPORTER: nats://nats:4222
   
+  
 
 
 ---
@@ -162,7 +163,7 @@ spec:
       containers:
       - name: auth
         image: baoleme-backend-microservices:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Never
         envFrom:
         - configMapRef:
             name: common-env
@@ -315,6 +316,7 @@ spec:
       containers:
       - name: mail
         image: baoleme-backend-microservices:latest
+        imagePullPolicy: Never
         envFrom:
         - configMapRef:
             name: common-env
@@ -446,6 +448,7 @@ spec:
       containers:
       - name: oss
         image: baoleme-backend-microservices:latest
+        imagePullPolicy: Never
         envFrom:
         - configMapRef:
             name: common-env
@@ -500,6 +503,7 @@ spec:
       containers:
       - name: address
         image: baoleme-backend-microservices:latest
+        imagePullPolicy: Never
         envFrom:
         - configMapRef:
             name: common-env
