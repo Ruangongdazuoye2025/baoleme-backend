@@ -1,0 +1,167 @@
+#########################################################
+# Auth, Mail Combined Service
+#########################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-mail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-mail
+  template:
+    metadata:
+      labels:
+        app: auth-mail
+    spec:
+      containers:
+      - name: auth-mail
+        image: docker.io/library/baoleme-backend-microservices:latest
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: common-env
+        env:
+        - name: SERVICES
+          value: "auth,mail"
+        - name: POSTGRES_DB
+          value: "authmaildb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: auth-mail-db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: auth-mail-db-credentials
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_HOST
+          value: "postgres-auth-mail"
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        ports:
+        - containerPort: 3000
+          name: http
+
+---
+#########################################################
+# Service for Auth, Mail Combined Service
+#########################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-mail
+spec:
+  selector:
+    app: auth-mail
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: http
+
+---
+# =========================
+# Auth Mail HPA
+# =========================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: auth-mail-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: auth-mail
+  minReplicas: 1
+  maxReplicas: 2
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+
+---
+#########################################################
+# PostgreSQL for Auth, Mail Services
+#########################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-auth-mail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-auth-mail
+  template:
+    metadata:
+      labels:
+        app: postgres-auth-mail
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "authmaildb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: auth-mail-db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: auth-mail-db-credentials
+              key: POSTGRES_PASSWORD
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-auth-mail-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-auth-mail
+spec:
+  selector:
+    app: postgres-auth-mail
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-auth-mail-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

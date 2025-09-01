@@ -47,7 +47,7 @@ jobs:
         cp baoleme-backend-microservices.tar.gz deploy/
         cp docker-compose.yml deploy/
         cp docker-compose.env deploy/
-        cp k8s.yaml deploy/
+        cp -r k8s deploy/
 
     - name: Upload Docker image
       uses: actions/upload-artifact@v4
@@ -104,5 +104,15 @@ jobs:
           # 删除pods
           kubectl delete pods --all --force --grace-period=0
 
-          # 重新应用配置
-          kubectl apply -f k8s.yaml
+          # 重新应用配置（按顺序应用各个文件）
+          kubectl apply -f k8s/secrets.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/traefik.yaml
+          kubectl apply -f k8s/api.yaml
+          kubectl apply -f k8s/auth-mail.yaml
+          kubectl apply -f k8s/oss.yaml
+          kubectl apply -f k8s/address.yaml
+          kubectl apply -f k8s/cart-history-item.yaml
+          kubectl apply -f k8s/order-shop.yaml
+          kubectl apply -f k8s/user-review.yaml
+          kubectl apply -f k8s/ingress.yaml

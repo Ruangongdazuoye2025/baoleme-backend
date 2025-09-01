@@ -1,0 +1,167 @@
+#########################################################
+# User, Review Combined Service
+#########################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-review
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-review
+  template:
+    metadata:
+      labels:
+        app: user-review
+    spec:
+      containers:
+      - name: user-review
+        image: docker.io/library/baoleme-backend-microservices:latest
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: common-env
+        env:
+        - name: SERVICES
+          value: "user"
+        - name: POSTGRES_DB
+          value: "userreviewdb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: user-review-db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: user-review-db-credentials
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_HOST
+          value: "postgres-user-review"
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        ports:
+        - containerPort: 3000
+          name: http
+
+---
+#########################################################
+# Service for User, Review Combined Service
+#########################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-review
+spec:
+  selector:
+    app: user-review
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: http
+
+---
+# =========================
+# User Review HPA
+# =========================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-review-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-review
+  minReplicas: 1
+  maxReplicas: 2
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+
+---
+#########################################################
+# PostgreSQL for User, Review Services
+#########################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-user-review
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-user-review
+  template:
+    metadata:
+      labels:
+        app: postgres-user-review
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "userreviewdb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: user-review-db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: user-review-db-credentials
+              key: POSTGRES_PASSWORD
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-user-review-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-user-review
+spec:
+  selector:
+    app: postgres-user-review
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-user-review-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

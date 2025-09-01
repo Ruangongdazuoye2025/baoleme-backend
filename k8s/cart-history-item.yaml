@@ -1,0 +1,167 @@
+#########################################################
+# Cart, History, Item Combined Service
+#########################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-history-item
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart-history-item
+  template:
+    metadata:
+      labels:
+        app: cart-history-item
+    spec:
+      containers:
+      - name: cart-history-item
+        image: docker.io/library/baoleme-backend-microservices:latest
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: common-env
+        env:
+        - name: SERVICES
+          value: "cart,history,item"
+        - name: POSTGRES_DB
+          value: "carthistoryitemdb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: cart-history-item-db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cart-history-item-db-credentials
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_HOST
+          value: "postgres-cart-history-item"
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        ports:
+        - containerPort: 3000
+          name: http
+
+---
+#########################################################
+# Service for Cart, History, Item Combined Service
+#########################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-history-item
+spec:
+  selector:
+    app: cart-history-item
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: http
+
+---
+# =========================
+# Cart History Item HPA
+# =========================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cart-history-item-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cart-history-item
+  minReplicas: 1
+  maxReplicas: 2
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+
+---
+#########################################################
+# PostgreSQL for Cart, History, Item Services
+#########################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-cart-history-item
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-cart-history-item
+  template:
+    metadata:
+      labels:
+        app: postgres-cart-history-item
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "carthistoryitemdb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: cart-history-item-db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cart-history-item-db-credentials
+              key: POSTGRES_PASSWORD
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-cart-history-item-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-cart-history-item
+spec:
+  selector:
+    app: postgres-cart-history-item
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-cart-history-item-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
