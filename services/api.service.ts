@@ -1,8 +1,18 @@
 import { Context, ServiceSchema } from "moleculer";
 import ApiGateway, { IncomingRequest, Route, GatewayResponse, ApiSettingsSchema } from 'moleculer-web'
 import ApiAuthMixin from "../mixins/api-auth.mixin";
+import { createProxyMiddleware } from 'http-proxy-middleware';
+import history from 'connect-history-api-fallback';
+import express from 'express';
 
 const E = ApiGateway.Errors;
+
+// AMap路由辅助函数
+const addJscodeToQuery = (urlString: string) => {
+    const url = new URL(urlString, 'http://_')
+    url.searchParams.append('jscode', process.env.AMAP_JSCODE!)
+    return url.searchParams.toString()
+}
 
 
 
@@ -13,6 +23,7 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
         port: parseInt(process.env.PORT || "3000"),
         ip: "0.0.0.0",
         routes: [
+            // API路由
             {
                 path: "/api",
                 mappingPolicy: "restrict",
@@ -121,6 +132,53 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     }
                     return data
                 },
+            },
+                        // AMap代理路由
+            {
+                path: "/_AMapService/v4/map/styles",
+                use: [
+                    createProxyMiddleware({
+                        target: 'https://webapi.amap.com',
+                        changeOrigin: true,
+                        pathRewrite: (path, req) => {
+                            return '/v4/map/styles?' + addJscodeToQuery(req.url!)
+                        }
+                    }) as any,
+                ],
+            },
+            {
+                path: "/_AMapService/v3/vectormap",
+                use: [
+                    createProxyMiddleware({
+                        target: 'https://webapi.amap.com',
+                        changeOrigin: true,
+                        pathRewrite: (path, req) => {
+                            return '/v3/vectormap?' + addJscodeToQuery(req.url!)
+                        }
+                    }) as any,
+                ],
+            },
+            {
+                path: "/_AMapService",
+                use: [
+                    createProxyMiddleware({
+                        target: 'https://restapi.amap.com',
+                        changeOrigin: true,
+                        pathRewrite: (path, req) => {
+                            const newPath = path.replace(/^\/_AMapService/, '');
+                            return newPath + (newPath.includes('?') ? '&' : '?') + addJscodeToQuery('');
+                        }
+                    }) as any,
+                ]
+            },
+            // 静态文件路由 (需要放在最后，以免影响其他路由)
+            {
+                path: "/",
+                mappingPolicy: "restrict",
+                use: [
+                    history() as any,
+                    express.static(process.env.STATIC_ROOT!),
+                ]
             }
         ]
     },
