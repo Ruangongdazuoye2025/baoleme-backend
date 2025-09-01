@@ -84,12 +84,18 @@ jobs:
         script: |
           cd /home/ci/deploy
           # 停止并删除现有容器
-          docker compose down --remove-orphans || true
-          # 清理未使用的镜像和数据卷
-          docker system prune -f
-          # 加载本地镜像
-          docker image load -i baoleme-backend-microservices.tar.gz
-          # 启动新服务
-          docker compose up -d --wait
-          # 检查服务状态
-          # docker compose ps
+          # docker compose down --remove-orphans || true
+          # # 清理未使用的镜像和数据卷
+          # docker system prune -f
+          # # 加载本地镜像
+          # docker image load -i baoleme-backend-microservices.tar.gz
+          # # 启动新服务
+          # docker compose up -d --wait
+          # # 检查服务状态
+          # # docker compose ps
+
+          # 删除pods
+          kubectl delete pods --all --force --grace-period=0
+
+          # 重新应用配置
+          kubectl apply -f k8s.yaml
