@@ -95,10 +95,10 @@ jobs:
           # # docker compose ps
           #
           # 先解压 tar.gz
-          gzip -d baoleme-backend-microservices.tar.gz
+          gzip -df baoleme-backend-microservices.tar.gz
           # 导入到 containerd
+          sudo ctr -n k8s.io images rm baoleme-backend-microservices:latest
           sudo ctr -n k8s.io images import baoleme-backend-microservices.tar
-          # 3. 给镜像打上和 YAML 一致的标签
           sudo ctr -n k8s.io images tag docker.io/library/baoleme-backend-microservices:latest baoleme-backend-microservices:latest
 
           # 删除pods
