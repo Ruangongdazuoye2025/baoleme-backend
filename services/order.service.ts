@@ -23,13 +23,13 @@ type Status = 'unpaid' | 'preparing' | 'prepared' | 'delivering' | 'finished' | 
 
 const getOrdersAsShopSchema = Joi.object({
     id: Joi.string().uuid().required(),
-    p: Joi.number().integer().min(0).max(100).default(10).optional(),
+    p: Joi.number().integer().min(0).default(0).optional(),
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
 
 const getOrdersSchema = Joi.object({
-    p: Joi.number().integer().min(0).max(100).default(10).optional(),
+    p: Joi.number().integer().min(0).default(10).optional(),
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
