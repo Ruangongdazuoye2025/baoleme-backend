@@ -1,0 +1,167 @@
+#########################################################
+# Order, Shop Combined Service
+#########################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-shop
+  template:
+    metadata:
+      labels:
+        app: order-shop
+    spec:
+      containers:
+      - name: order-shop
+        image: docker.io/library/baoleme-backend-microservices:latest
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: common-env
+        env:
+        - name: SERVICES
+          value: "order,shop"
+        - name: POSTGRES_DB
+          value: "ordershopdb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: order-shop-db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: order-shop-db-credentials
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_HOST
+          value: "postgres-order-shop"
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        ports:
+        - containerPort: 3000
+          name: http
+
+---
+#########################################################
+# Service for Order, Shop Combined Service
+#########################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-shop
+spec:
+  selector:
+    app: order-shop
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: http
+
+---
+# =========================
+# Order Shop HPA
+# =========================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-shop-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-shop
+  minReplicas: 1
+  maxReplicas: 2
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+
+---
+#########################################################
+# PostgreSQL for Order, Shop Services
+#########################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-order-shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-order-shop
+  template:
+    metadata:
+      labels:
+        app: postgres-order-shop
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "ordershopdb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: order-shop-db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: order-shop-db-credentials
+              key: POSTGRES_PASSWORD
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-order-shop-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-order-shop
+spec:
+  selector:
+    app: postgres-order-shop
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-order-shop-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

@@ -5,9 +5,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress
-  #annotations:
-  #  kubernetes.io/ingress.class: nginx
 spec:
+  ingressClassName: traefik
   rules:
   - host: api.baoleme.xyz
     http:
@@ -28,9 +27,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: api-ingress
-  annotations:
-    kubernetes.io/ingress.class: traefik
 spec:
+  ingressClassName: traefik
   rules:
     - host: api.baoleme.xyz   # 修改域名
       http:
@@ -48,9 +46,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: auth-ingress
-  annotations:
-    kubernetes.io/ingress.class: traefik
 spec:
+  ingressClassName: traefik
   rules:
     - host: auth.baoleme.xyz
       http:
@@ -59,7 +56,26 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: auth
+                name: auth-mail
+                port:
+                  number: 3000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mail-ingress
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: mail.baoleme.xyz
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-mail
                 port:
                   number: 3000
 
@@ -68,9 +84,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: minio-ingress
-  annotations:
-    kubernetes.io/ingress.class: traefik
 spec:
+  ingressClassName: traefik
   rules:
     - host: minio.baoleme.xyz
       http:
@@ -82,3 +97,62 @@ spec:
                 name: minio
                 port:
                   number: 9001
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cart-history-item-ingress
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: services.baoleme.xyz
+      http:
+        paths:
+          - path: /cart
+            pathType: Prefix
+            backend:
+              service:
+                name: cart-history-item
+                port:
+                  number: 3000
+          - path: /history
+            pathType: Prefix
+            backend:
+              service:
+                name: cart-history-item
+                port:
+                  number: 3000
+          - path: /item
+            pathType: Prefix
+            backend:
+              service:
+                name: cart-history-item
+                port:
+                  number: 3000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: order-shop-ingress
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: business.baoleme.xyz
+      http:
+        paths:
+          - path: /order
+            pathType: Prefix
+            backend:
+              service:
+                name: order-shop
+                port:
+                  number: 3000
+          - path: /shop
+            pathType: Prefix
+            backend:
+              service:
+                name: order-shop
+                port:
+                  number: 3000
