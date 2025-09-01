@@ -482,6 +482,55 @@ const OrderService: ServiceSchema = {
                 ctx.emit('order.deleted', { id });
             }
         },
+
+        /**
+         * Get order items by order ID (for review service).
+         */
+        getOrderItemsByOrderId: {
+            params: getOrderByIdSchema as any,
+            async handler(ctx: Context<getOrderByIdPrams>) {
+                const { id } = ctx.params;
+                
+                const orderItems = await (this.prisma as PrismaClient).orderItem.findMany({
+                    where: { orderId: id }
+                });
+                
+                return orderItems;
+            }
+        },
+
+        /**
+         * Get order items by item ID (for review service).
+         */
+        getOrderItemsByItemId: {
+            params: Joi.object({ itemId: Joi.string().uuid().required() }) as any,
+            async handler(ctx: Context<{ itemId: string }>) {
+                const { itemId } = ctx.params;
+                
+                const orderItems = await (this.prisma as PrismaClient).orderItem.findMany({
+                    where: { itemId }
+                });
+                
+                return orderItems;
+            }
+        },
+
+        /**
+         * Get order IDs by shop ID (for review service).
+         */
+        getOrderIdsByShopId: {
+            params: Joi.object({ shopId: Joi.string().uuid().required() }) as any,
+            async handler(ctx: Context<{ shopId: string }>) {
+                const { shopId } = ctx.params;
+                
+                const orders = await (this.prisma as PrismaClient).order.findMany({
+                    where: { shopId },
+                    select: { id: true }
+                });
+                
+                return orders.map(order => order.id);
+            }
+        },
     },
 
     methods: {

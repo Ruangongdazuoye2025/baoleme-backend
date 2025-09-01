@@ -5,6 +5,7 @@ import Joi from "joi";
 import { AuthMeta } from "../mixins/api-auth.mixin"; // 假设 AuthMeta 的路径
 import { Readable } from 'stream';
 import { QueuedIteratorImpl } from "nats/lib/nats-base-client/queued_iterator";
+import haversineDistance from "haversine-distance";
 
 // --- Joi Schemas for Request Validation ---
 
@@ -85,7 +86,7 @@ const updateShopSaleRequestSchema = Joi.object({
 
 const updateShopRatingRequestSchema = Joi.object({
     shopId: Joi.string().uuid().required(),
-    rating: Joi.number().min(0).max(5).required(),
+    rating: Joi.number().min(0).max(50).required(),
 });
 
 const addShopCategoryRequestSchema = Joi.object({
@@ -254,7 +255,7 @@ interface UpdateShopSaleRequest {
 
 interface UpdateShopRatingRequest {
     shopId: string;
-    rating: number;
+    rating: number; // 0-50
 }
 
 interface GetItemCategoriesRequest {
@@ -1053,6 +1054,48 @@ const ShopService: ServiceSchema = {
             return {
                 id: category.id,
                 name: category.name,
+            };
+        },
+
+        // 计算配送时间：距离(km) × 13
+        calculateDeliveryTime(distanceKm: number): number {
+            return Math.round(distanceKm * 13);
+        },
+
+        // 判断店铺是否在营业时间内（UTC时间）
+        isShopCurrentlyOpen(openTimeStart: number, openTimeEnd: number): boolean {
+            const now = new Date();
+            const currentUtcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+            
+            if (openTimeStart <= openTimeEnd) {
+                // 不跨零点：如 08:00-22:00 (480-1320)
+                return currentUtcMinutes >= openTimeStart && currentUtcMinutes <= openTimeEnd;
+            } else {
+                // 跨零点：如 22:00-08:00 (1320-480)
+                return currentUtcMinutes >= openTimeStart || currentUtcMinutes <= openTimeEnd;
+            }
+        },
+
+        // 计算两点间的haversine距离（公里）
+        calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+            const point1 = { latitude: lat1, longitude: lng1 };
+            const point2 = { latitude: lat2, longitude: lng2 };
+            return haversineDistance(point1, point2) / 1000; // 转换为公里
+        },
+
+        // 根据中心点和最大距离计算经纬度边界框
+        calculateBoundingBox(centerLat: number, centerLng: number, maxDistanceKm: number) {
+            // 1度纬度 ≈ 111公里
+            const latDelta = maxDistanceKm / 111;
+            
+            // 1度经度距离随纬度变化，在纬度lat处：1度经度 ≈ 111 * cos(lat) 公里
+            const lngDelta = maxDistanceKm / (111 * Math.cos(centerLat * Math.PI / 180));
+            
+            return {
+                minLat: centerLat - latDelta,
+                maxLat: centerLat + latDelta,
+                minLng: centerLng - lngDelta,
+                maxLng: centerLng + lngDelta
             };
         },
 

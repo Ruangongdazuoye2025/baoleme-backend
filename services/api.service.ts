@@ -93,6 +93,11 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "PATCH /shops/:shopId/item-categories/:categoryId/pos":"shop.updateItemCategoryPos",
                     "DELETE /shops/:shopId/item-categories/:categoryId":"shop.deleteItemCategory",
 
+                    // Recommended
+                    "GET /recommended/shops": "recommended.getRecommendedShops",
+                    "GET /recommended/items": "recommended.getRecommendedItems",
+                    "GET /recommended/orders": "recommended.getRecommendedOrders",
+
                     // Item
                     "GET /shops/:shopId/items": "item.getItems",
                     "GET /shops/:shopId/item-categories/:categoryId/items": "item.getShopCategoryItems",
@@ -101,6 +106,13 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "PATCH /items/:id/profile": "item.updateItemProfile",
                     "PATCH /items/:id/cover": "multipart:item.updateItemImage",
                     "DELETE /items/:id": "item.deleteItem",
+
+                    // Review
+                    "POST /comments": "review.create",
+                    "GET /comments/by-order/:id": "review.getByOrderId",
+                    "GET /shop/:id/comments": "review.getByShopId",
+                    "PATCH /comments/:id": "review.update",
+                    "DELETE /comments/:id": "review.delete",
                     
                 },
                 onAfterCall(ctx, route, req, res, data) {
