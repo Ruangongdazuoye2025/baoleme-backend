@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: address
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: address
+  template:
+    metadata:
+      labels:
+        app: address
+    spec:
+      containers:
+      - name: address
+        image: docker.io/library/baoleme-backend-microservices:latest
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: common-env
+        env:
+        - name: SERVICES
+          value: "address"
+        - name: POSTGRES_DB
+          value: "addressdb"
+        - name: POSTGRES_USER
+          value: "addressuser"
+        - name: POSTGRES_PASSWORD
+          value: "addresspass"
+        - name: POSTGRES_HOST
+          value: "postgres-address"
+        resources:
+          limits:
+            cpu: "200m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+
+---
+# ==============================
+# Address service HPA
+# ==============================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: address-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: address
+  minReplicas: 1
+  maxReplicas: 1
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+# ========================
+# Address PostgreSQL Deployment
+# ========================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-address
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-address
+  template:
+    metadata:
+      labels:
+        app: postgres-address
+    spec:
+      containers:
+      - name: postgres-address
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "addressdb"
+        - name: POSTGRES_USER
+          value: "addressuser"
+        - name: POSTGRES_PASSWORD
+          value: "addresspass"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-address-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+          requests:
+            cpu: "100m"
+            memory: "64Mi"
+      volumes:
+      - name: postgres-address-data
+        persistentVolumeClaim:
+          claimName: postgres-address-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-address-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-address
+spec:
+  selector:
+    app: postgres-address
+  ports:
+  - port: 5432
+    targetPort: 5432

@@ -1,0 +1,133 @@
+# #############
+# Mail Service
+# #############
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mail
+  template:
+    metadata:
+      labels:
+        app: mail
+    spec:
+      containers:
+      - name: mail
+        image: docker.io/library/baoleme-backend-microservices:latest
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: common-env
+        env:
+        - name: SERVICES
+          value: "mail"
+        - name: POSTGRES_DB
+          value: "maildb"
+        - name: POSTGRES_USER
+          value: "mailuser"
+        - name: POSTGRES_PASSWORD
+          value: "mailpass"
+        - name: POSTGRES_HOST
+          value: "postgres-mail"
+        resources:
+          limits:
+            cpu: "200m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+
+---
+# =========================
+# Mail service HPA
+# =========================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: mail-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: mail
+  minReplicas: 1
+  maxReplicas: 1
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+# ========================
+# Mail PostgreSQL Deployment
+# ========================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-mail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-mail
+  template:
+    metadata:
+      labels:
+        app: postgres-mail
+    spec:
+      containers:
+      - name: postgres-mail
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "maildb"
+        - name: POSTGRES_USER
+          value: "mailuser"
+        - name: POSTGRES_PASSWORD
+          value: "mailpass"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-mail-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+          requests:
+            cpu: "100m"
+            memory: "64Mi"
+      volumes:
+      - name: postgres-mail-data
+        persistentVolumeClaim:
+          claimName: postgres-mail-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-mail-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-mail
+spec:
+  selector:
+    app: postgres-mail
+  ports:
+  - port: 5432
+    targetPort: 5432

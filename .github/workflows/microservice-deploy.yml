@@ -47,7 +47,7 @@ jobs:
         cp baoleme-backend-microservices.tar.gz deploy/
         cp docker-compose.yml deploy/
         cp docker-compose.env deploy/
-        cp k8s.yaml deploy/
+        cp -r k8s deploy/
 
     - name: Upload Docker image
       uses: actions/upload-artifact@v4
@@ -84,25 +84,33 @@ jobs:
         script: |
           cd /home/ci/deploy
           # 停止并删除现有容器
-          # docker compose down --remove-orphans || true
-          # # 清理未使用的镜像和数据卷
-          # docker system prune -f
-          # # 加载本地镜像
-          # docker image load -i baoleme-backend-microservices.tar.gz
-          # # 启动新服务
-          # docker compose up -d --wait
+          docker compose down --remove-orphans || true
+          # 清理未使用的镜像和数据卷
+          docker system prune -f
+          # 加载本地镜像
+          docker image load -i baoleme-backend-microservices.tar.gz
+          # 启动新服务
+          docker compose up -d --wait
           # # 检查服务状态
           # # docker compose ps
           #
           # 先解压 tar.gz
-          gzip -df baoleme-backend-microservices.tar.gz
-          # 导入到 containerd
-          sudo ctr -n k8s.io images rm baoleme-backend-microservices:latest
-          sudo ctr -n k8s.io images import baoleme-backend-microservices.tar
-          sudo ctr -n k8s.io images tag docker.io/library/baoleme-backend-microservices:latest baoleme-backend-microservices:latest
+          # gzip -df baoleme-backend-microservices.tar.gz
+          # # 导入到 containerd
+          # sudo ctr -n k8s.io images rm baoleme-backend-microservices:latest
+          # sudo ctr -n k8s.io images import baoleme-backend-microservices.tar
+          # sudo ctr -n k8s.io images tag docker.io/library/baoleme-backend-microservices:latest baoleme-backend-microservices:latest
 
-          # 删除pods
-          kubectl delete pods --all --force --grace-period=0
+          # # 删除pods
+          # kubectl delete pods --all --force --grace-period=0
 
-          # 重新应用配置
-          kubectl apply -f k8s.yaml
+          # # 重新应用配置（按顺序应用各个文件）
+          # kubectl apply -f k8s/secrets.yaml
+          # kubectl apply -f k8s/configmap.yaml
+          # kubectl apply -f k8s/traefik.yaml
+          # kubectl apply -f k8s/api.yaml
+          # kubectl apply -f k8s/auth.yaml
+          # kubectl apply -f k8s/mail.yaml
+          # kubectl apply -f k8s/oss.yaml
+          # kubectl apply -f k8s/address.yaml
+          # kubectl apply -f k8s/ingress.yaml
