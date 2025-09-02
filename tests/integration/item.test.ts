@@ -1,6 +1,7 @@
 // tests/integrated/item.test.ts
 import request from 'supertest';
 import { SmtpTestServer } from '../utils/smtp.util';
+import { describeGenericAuthTest } from '../utils/auth-test.util';
 
 describe('Item Service Integration Tests', () => {
     const baseURL = process.env.BASE_URL || 'http://localhost:3000';
@@ -16,76 +17,61 @@ describe('Item Service Integration Tests', () => {
     let itemId: string;
 
     // 在所有测试开始前，注册一个商家用户并创建店铺
-    beforeAll(async () => {
+    beforeAll(() => {
         console.log('Testing against:', baseURL);
+    }); // 增加 beforeAll 的超时时间
 
-        // 1. 注册用户
-        await request(baseURL)
-            .post('/api/auth/register')
-            .send({ email: testUser.email, password: testUser.password })
-            .expect(200);
+    describe('Setup: Create Merchant, Shop, and Category', () => {
+        describeGenericAuthTest(request(baseURL), testUser.email, testUser.password, (token, id) => {
+            authToken = token;
+            userId = id;
+        });
 
-        // 2. 验证邮箱
-        const mail = await ((global as any).smtpServer as SmtpTestServer).waitForMail();
-        const tokenMatch = mail.html?.toString().match(/token=([^"]+)/);
-        const verificationToken = decodeURIComponent(tokenMatch![1]);
-        ((global as any).smtpServer as SmtpTestServer).resetMailPromise();
-        await request(baseURL)
-            .post('/api/auth/verify-register')
-            .send({ token: verificationToken })
-            .expect(200);
+        it('should update user role to MERCHANT', async () => {
+            await request(baseURL)
+                .patch(`/api/user/${userId}/profile`)
+                .set('Authorization', `Bearer ${authToken}`)
+                .send({ role: 'merchant' })
+                .expect(200);
+        });
 
-        // 3. 登录获取 token
-        const loginResponse = await request(baseURL)
-            .post('/api/auth/login')
-            .send({ email: testUser.email, password: testUser.password })
-            .expect(200);
-        authToken = loginResponse.body.token;
-        userId = loginResponse.body.id;
+        it('should create a new shop for the merchant', async () => {
+            const shopResponse = await request(baseURL)
+                .post('/api/shops')
+                .set('Authorization', `Bearer ${authToken}`)
+                .send({
+                    name: 'My Test Shop',
+                    description: 'A shop for testing purposes',
+                    categories: [], // 假设可以为空或需要预先获取
+                    address: {
+                        coordinate: [0, 0],
+                        province: 'New York',
+                        city: 'New York',
+                        district: 'Manhattan',
+                        address: '123 Test St',
+                        name: 'Work',
+                        tel: '1234567890'
+                    },
+                    opened: true,
+                    openTimeStart: 0,
+                    openTimeEnd: 1440,
+                    deliveryThreshold: 0,
+                    deliveryPrice: 0,
+                    maximumDistance: 0
+                })
+                .expect(200);
+            shopId = shopResponse.body.id;
+        });
 
-        // 4. 更新用户角色为商家
-        await request(baseURL)
-            .patch(`/api/user/${userId}/profile`)
-            .set('Authorization', `Bearer ${authToken}`)
-            .send({ role: 'merchant' })
-            .expect(200);
-        
-        // 5. 创建店铺
-        const shopResponse = await request(baseURL)
-            .post('/api/shops')
-            .set('Authorization', `Bearer ${authToken}`)
-            .send({
-                name: 'My Test Shop',
-                description: 'A shop for testing purposes',
-                categories: [], // 假设可以为空或需要预先获取
-                address: {
-                    coordinate: [0, 0],
-                    province: 'New York',
-                    city: 'New York',
-                    district: 'Manhattan',
-                    address: '123 Test St',
-                    name: 'Work',
-                    tel: '1234567890'
-                },
-                opened: true,
-                openTimeStart: 0,
-                openTimeEnd: 1440,
-                deliveryThreshold: 0,
-                deliveryPrice: 0,
-                maximumDistance: 0
-            })
-            .expect(200);
-        shopId = shopResponse.body.id;
-
-        // 6. 创建商品分类
-        const categoryResponse = await request(baseURL)
-            .post(`/api/shops/${shopId}/item-categories`)
-            .set('Authorization', `Bearer ${authToken}`)
-            .send({ name: 'Test Category' })
-            .expect(200);
-        categoryId = categoryResponse.body.id;
-
-    }, 60000); // 增加 beforeAll 的超时时间
+        it('should create an item category for the shop', async () => {
+            const categoryResponse = await request(baseURL)
+                .post(`/api/shops/${shopId}/item-categories`)
+                .set('Authorization', `Bearer ${authToken}`)
+                .send({ name: 'Test Category' })
+                .expect(200);
+            categoryId = categoryResponse.body.id;
+        });
+    });
 
     describe('POST /api/shops/{shopId}/items', () => {
         it('should fail to add an item without authentication', async () => {
