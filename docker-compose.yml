@@ -1,80 +1,4 @@
-version: "3.3"
-
 services:
-
-  api:
-    image: baoleme-backend-microservices:latest
-    container_name: baoleme-backend-microservices-api
-    env_file: docker-compose.env
-    environment:
-      SERVICES: api
-      PORT: 3000
-    depends_on:
-      - nats
-      - postgres
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api-gw.rule=PathPrefix(`/`)"
-      - "traefik.http.services.api-gw.loadbalancer.server.port=3000"
-    networks:
-      - internal
-
-  auth:
-    image: baoleme-backend-microservices:latest
-    container_name: baoleme-backend-microservices-auth
-    env_file: docker-compose.env
-    environment:
-      SERVICES: auth
-    depends_on:
-      - nats
-      - postgres
-    networks:
-      - internal
-
-  mail:
-    image: baoleme-backend-microservices:latest
-    container_name: baoleme-backend-microservices-mail
-    env_file: docker-compose.env
-    environment:
-      SERVICES: mail
-    depends_on:
-      - nats
-    networks:
-      - internal
-
-  oss:
-    image: baoleme-backend-microservices:latest
-    container_name: baoleme-backend-microservices-oss
-    env_file: docker-compose.env
-    environment:
-      SERVICES: oss
-    depends_on:
-      - nats
-    networks:
-      - internal
-  
-  address:
-    image: baoleme-backend-microservices:latest
-    container_name: baoleme-backend-microservices-address
-    env_file: docker-compose.env
-    environment:
-      SERVICES: address
-    depends_on:
-      - nats
-      - postgres
-    networks:
-      - internal
-
-  # nginx-proxy-manager:
-  #   image: jc21/nginx-proxy-manager:latest
-  #   container_name: nginx-proxy-manager-services
-  #   restart: always
-  #   ports:
-  #     - 37002:81
-  #     - 80:80
-  #     - 443:443
-  #   environment:
-  #     DB_SQLITE_FILE: /data/database.sqlite
 
   minio:
     image: quay.io/minio/minio:latest
@@ -82,18 +6,16 @@ services:
     command: server --console-address ':9001' /data
     restart: always
     ports:
-      - 9001:9001
       - 9000:9000
+      - 9001:9001
     environment:
-      - MINIO_ROOT_USER=31b4134289454f089eb1554a81c6bbef
-      - MINIO_ROOT_PASSWORD=fc59412342fa488991ff65e94fbea656
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - internal
 
   postgres:
     image: postgres:17
@@ -104,38 +26,10 @@ services:
     environment:
       - POSTGRES_PASSWORD=postgres
     volumes:
-      - /home/ci/data/postgres/data:/var/lib/postgresql/data
-      - /home/ci/server/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'postgres', '-h', 'localhost']
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'postgres']
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - internal
-
-  nats:
-    image: nats:2
-    networks:
-      - internal
-
-  traefik:
-    image: traefik:v2.4
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-    ports:
-      - 3000:80
-      - 3001:8080
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - internal
-      - default
-
-networks:
-  internal:
-  default:
-volumes:
-  data:
