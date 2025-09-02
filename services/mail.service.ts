@@ -27,6 +27,7 @@ const MailService: ServiceSchema = {
         smtpUser: process.env.SMTP_USER || "",
         /** @type {String} SMTP password from environment variable */
         smtpPassword: process.env.SMTP_PASSWORD || "",
+        smtpNoVerify: process.env.SMTP_NO_VERIFY === "true",
         /** @type {String} Base URL from environment variable */
         baseUrl: process.env.BASE_URL || "http://localhost:3000",
         /** @type {String} Application name from environment variable */
@@ -186,13 +187,15 @@ const MailService: ServiceSchema = {
             this.logger.warn("SMTP configuration incomplete. Please check environment variables: SMTP_HOST, SMTP_USER, SMTP_PASSWORD");
         }
         
-        // Test connection on startup
-        this.logger.info("Testing SMTP connection...");
-        try {
-            await (this.transporter as nodemailer.Transporter).verify();
-            this.logger.info("SMTP connection verified successfully");
-        } catch (error) {
-            this.logger.error("SMTP connection verification failed:", (error as any).message);
+        if (this.settings.smtpNoVeriFy === false) {
+            // Test connection on startup
+            this.logger.info("Testing SMTP connection...");
+            try {
+                await (this.transporter as nodemailer.Transporter).verify();
+                this.logger.info("SMTP connection verified successfully");
+            } catch (error) {
+                this.logger.error("SMTP connection verification failed:", (error as any).message);
+            }
         }
     },
 

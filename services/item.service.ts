@@ -60,7 +60,7 @@ const updateItemSaleRequestSchema = Joi.object({
 
 const updateItemRatingRequestSchema = Joi.object({
     itemId: Joi.string().uuid().required(),
-    rating: Joi.number().min(0).max(5).required()
+    rating: Joi.number().min(0).max(50).required()
 });
 
 const getShopItemIdsRequestSchema = Joi.object({
@@ -122,7 +122,17 @@ interface UpdateItemSaleRequest {
 
 interface UpdateItemRatingRequest {
     itemId: string;
-    rating: number;
+    rating: number; // 0-50
+}
+
+const getTopSellingItemsByShopRequestSchema = Joi.object({
+    shopId: Joi.string().uuid().required(),
+    limit: Joi.number().integer().min(0).max(5).default(3).optional()
+});
+
+interface GetTopSellingItemsByShopRequest {
+    shopId: string;
+    limit: number;
 }
 
 interface GetShopItemIdsRequest {
@@ -424,6 +434,33 @@ const ItemService: ServiceSchema = {
                     ctx.call("oss.getObjectUrl", undefined, { meta: { objectName: `items/${id}/cover-thumbnail.webp` }})
                 ]);
                 return { origin: coverOrigin, thumbnail: coverThumbnail }
+            }
+        },
+
+        getTopSellingItemsByShop: {
+            params: getTopSellingItemsByShopRequestSchema as any,
+            async handler(ctx: Context<GetTopSellingItemsByShopRequest>) {
+                const { shopId, limit } = ctx.params;
+
+                if (limit === 0) {
+                    return [];
+                }
+
+                const items = await (this.prisma as PrismaClient).item.findMany({
+                    where: { 
+                        shopId,
+                        available: true,  // 只返回上架的商品
+                        stockout: false   // 只返回有库存的商品
+                    },
+                    include: { itemItemCategories: true },
+                    orderBy: [
+                        { sale: 'desc' },    // 按销量降序
+                        { rating: 'desc' }   // 销量相同时按评分降序
+                    ],
+                    take: limit
+                });
+
+                return Promise.all(items.map(item => this.itemDataToFullItemInfo(item, ctx)));
             }
         }
     },

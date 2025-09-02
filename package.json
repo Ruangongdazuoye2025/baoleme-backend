@@ -7,8 +7,8 @@
     "dev": "npx tsx ./node_modules/moleculer/bin/moleculer-runner.js --env --config moleculer.config.ts --hot --repl services/**/*.service.ts",
     "start": "moleculer-runner --env --config out/moleculer.config.js",
     "cli": "moleculer connect NATS",
-    "ci": "jest --watch",
-    "test": "jest --coverage",
+    "test:integration": "jest tests/integration --verbose --setupFilesAfterEnv=./tests/integration/setup.ts --runInBand",
+    "test:integration:watch": "jest tests/integration --watch --verbose --setupFilesAfterEnv=./tests/integration/setup.ts --runInBand",
     "dc:up": "docker-compose up --build -d",
     "dc:logs": "docker-compose logs -f",
     "dc:down": "docker-compose down"
@@ -20,18 +20,32 @@
   "author": "",
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
+    "@types/connect-history-api-fallback": "^1.5.4",
+    "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/mailparser": "^3.4.6",
     "@types/nodemailer": "^7.0.1",
-    "jest": "^27.5.1",
+    "@types/smtp-server": "^3.5.12",
+    "@types/supertest": "^6.0.3",
+    "jest": "^29.7.0",
     "jest-cli": "^27.5.1",
+    "mailparser": "^3.7.4",
     "moleculer-repl": "^0.7.3",
-    "tsx": "^4.20.5"
+    "smtp-server": "^3.14.0",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",
     "bcrypt": "^6.0.0",
+    "connect-history-api-fallback": "^2.0.0",
     "dotenv": "^17.2.1",
+    "express": "^5.1.0",
     "haversine-distance": "^1.2.4",
+    "http-proxy-middleware": "^3.0.5",
     "joi": "^18.0.1",
     "jsonwebtoken": "^9.0.2",
     "minio": "^8.0.5",
@@ -46,14 +60,6 @@
   },
   "engines": {
     "node": ">= 16.x.x"
-  },
-  "jest": {
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node",
-    "rootDir": "./services",
-    "roots": [
-      "../test"
-    ]
   },
   "prisma": {
     "schema": "./prisma"

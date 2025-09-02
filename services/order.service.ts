@@ -23,13 +23,13 @@ type Status = 'unpaid' | 'preparing' | 'prepared' | 'delivering' | 'finished' | 
 
 const getOrdersAsShopSchema = Joi.object({
     id: Joi.string().uuid().required(),
-    p: Joi.number().integer().min(0).max(100).default(10).optional(),
+    p: Joi.number().integer().min(0).default(0).optional(),
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
 
 const getOrdersSchema = Joi.object({
-    p: Joi.number().integer().min(0).max(100).default(10).optional(),
+    p: Joi.number().integer().min(0).default(10).optional(),
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
@@ -480,6 +480,55 @@ const OrderService: ServiceSchema = {
                 await this.prisma.order.delete({ where: { id } });
 
                 ctx.emit('order.deleted', { id });
+            }
+        },
+
+        /**
+         * Get order items by order ID (for review service).
+         */
+        getOrderItemsByOrderId: {
+            params: getOrderByIdSchema as any,
+            async handler(ctx: Context<getOrderByIdPrams>) {
+                const { id } = ctx.params;
+                
+                const orderItems = await (this.prisma as PrismaClient).orderItem.findMany({
+                    where: { orderId: id }
+                });
+                
+                return orderItems;
+            }
+        },
+
+        /**
+         * Get order items by item ID (for review service).
+         */
+        getOrderItemsByItemId: {
+            params: Joi.object({ itemId: Joi.string().uuid().required() }) as any,
+            async handler(ctx: Context<{ itemId: string }>) {
+                const { itemId } = ctx.params;
+                
+                const orderItems = await (this.prisma as PrismaClient).orderItem.findMany({
+                    where: { itemId }
+                });
+                
+                return orderItems;
+            }
+        },
+
+        /**
+         * Get order IDs by shop ID (for review service).
+         */
+        getOrderIdsByShopId: {
+            params: Joi.object({ shopId: Joi.string().uuid().required() }) as any,
+            async handler(ctx: Context<{ shopId: string }>) {
+                const { shopId } = ctx.params;
+                
+                const orders = await (this.prisma as PrismaClient).order.findMany({
+                    where: { shopId },
+                    select: { id: true }
+                });
+                
+                return orders.map(order => order.id);
             }
         },
     },

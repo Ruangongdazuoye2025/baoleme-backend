@@ -376,6 +376,37 @@ const AddressService: ServiceSchema = {
                 });
                 return this.mapDbAddressToApiResponse(updatedDbAddress);
             }
+        },
+
+        getAddressByIdOrDefault: {
+            async handler(ctx: Context<{ userId: string, addressId?: string }>) {
+                const { userId, addressId } = ctx.params;
+
+                if (addressId) {
+                    // 获取指定地址
+                    const address = await (this.prisma as PrismaClient).address.findUnique({
+                        where: { id: addressId }
+                    });
+
+                    if (!address) {
+                        throw new Errors.MoleculerError("收货地址未找到", 404);
+                    }
+                    if (address.userId !== userId) {
+                        throw new Errors.MoleculerError("无权访问此地址", 403);
+                    }
+                    return this.mapDbAddressToApiResponse(address);
+                } else {
+                    // 获取默认地址
+                    const defaultAddress = await (this.prisma as PrismaClient).address.findFirst({
+                        where: { userId, isDefault: true }
+                    });
+
+                    if (!defaultAddress) {
+                        throw new Errors.MoleculerError("未找到默认收货地址", 404);
+                    }
+                    return this.mapDbAddressToApiResponse(defaultAddress);
+                }
+            }
         }
     },
 
