@@ -130,9 +130,9 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     
                 },
                 onAfterCall(ctx, route, req, res, data) {
-                    if (!data) {
-                        res.statusCode = 204
-                    }
+                    // if (!data) {
+                    //     res.statusCode = 204
+                    // }
                     return data
                 },
             },
