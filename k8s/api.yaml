@@ -29,6 +29,20 @@ spec:
             value: "nats://nats:4222"
           - name: PORT
             value: "3000"
+          - name: POSTGRES_DB
+            value: "apidb"
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                name: api-db-credentials
+                key: POSTGRES_USER
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: api-db-credentials
+                key: POSTGRES_PASSWORD
+          - name: POSTGRES_HOST
+            value: "postgres-api"
         ports:
         - containerPort: 3000
         resources:
@@ -74,3 +88,80 @@ spec:
         target:
           type: Utilization
           averageUtilization: 80
+
+---
+#########################################################
+# PostgreSQL for API Service
+#########################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-api
+  template:
+    metadata:
+      labels:
+        app: postgres-api
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "apidb"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: api-db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: api-db-credentials
+              key: POSTGRES_PASSWORD
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-api-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-api
+spec:
+  selector:
+    app: postgres-api
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-api-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
