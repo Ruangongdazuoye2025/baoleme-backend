@@ -22,6 +22,9 @@ spec:
         env:
         - name: SERVICES
           value: "oss"
+        ports:
+        - containerPort: 3000
+          name: http
         resources:
           limits:
             cpu: "200m"
@@ -29,6 +32,22 @@ spec:
           requests:
             cpu: "100m"
             memory: "256Mi"
+
+---
+#########################################################
+# Service for OSS Service
+#########################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: oss
+spec:
+  selector:
+    app: oss
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: http
 
 ---
 # =========================

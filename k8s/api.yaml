@@ -24,8 +24,10 @@ spec:
             name: common-env
         env:
           - name: SERVICES
-            value: api
-          - name: port
+            value: "api"
+          - name: TRANSPORTER
+            value: "nats://nats:4222"
+          - name: PORT
             value: "3000"
         ports:
         - containerPort: 3000

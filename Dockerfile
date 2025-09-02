@@ -14,4 +14,9 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["sh", "scripts/start-services.sh"]
+# 根据SERVICES环境变量决定启动方式
+CMD if [ "$SERVICES" = "api" ]; then \
+        npm run build && npm start; \
+    else \
+        sh scripts/start-services.sh; \
+    fi

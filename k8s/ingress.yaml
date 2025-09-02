@@ -1,17 +1,21 @@
 #########################################################
-# Ingress for Moleculer API Gateway
+# 统一API路由配置 - baoleme.xyz/api/
+# API Gateway处理所有API请求，内部路由到对应微服务
 #########################################################
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ingress
+  name: baoleme-api-ingress
+  annotations:
+    # 移除rewrite，保持原始路径
+    # traefik.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: traefik
   rules:
   - host: baoleme.xyz
     http:
       paths:
-      - path: /api
+      - path: /
         pathType: Prefix
         backend:
           service:
@@ -19,178 +23,24 @@ spec:
             port:
               number: 3000
 
-# ==============================
-# Ingress 路由规则
-# ==============================
 ---
+#########################################################
+# MinIO管理控制台单独路由
+#########################################################
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: api-ingress
+  name: minio-console-ingress
 spec:
   ingressClassName: traefik
   rules:
-    - host: baoleme.xyz
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: api
-                port:
-                  number: 3000
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: auth-ingress
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: baoleme.xyz
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: auth-mail
-                port:
-                  number: 3000
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: mail-ingress
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: baoleme.xyz
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: auth-mail
-                port:
-                  number: 3000
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: minio-ingress
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: baoleme.xyz
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: minio
-                port:
-                  number: 9001
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: cart-history-item-ingress
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: baoleme.xyz
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: cart-history-item
-                port:
-                  number: 3000
-          - path: /history
-            pathType: Prefix
-            backend:
-              service:
-                name: cart-history-item
-                port:
-                  number: 3000
-          - path: /item
-            pathType: Prefix
-            backend:
-              service:
-                name: cart-history-item
-                port:
-                  number: 3000
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: order-shop-ingress
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: baoleme.xyz
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: order-shop
-                port:
-                  number: 3000
-          - path: /shop
-            pathType: Prefix
-            backend:
-              service:
-                name: order-shop
-                port:
-                  number: 3000
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: address-ingress
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: baoleme.xyz
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: address
-                port:
-                  number: 3000
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: user-review-ingress
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: baoleme.xyz
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: user-review
-                port:
-                  number: 3000
+  - host: minio.baoleme.xyz
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio
+            port:
+              number: 9001
