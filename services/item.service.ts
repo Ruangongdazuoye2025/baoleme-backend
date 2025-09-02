@@ -25,11 +25,11 @@ const getItemRequestSchema = Joi.object({
 const createItemRequestSchema = Joi.object({
     shopId: Joi.string().uuid().required(),
     name: Joi.string().required(),
-    description: Joi.string().optional(),
+    description: Joi.string(),
     available: Joi.boolean().default(true),
     stockout: Joi.boolean().default(false),
     price: Joi.number().min(0).required(),
-    priceWithoutPromotion: Joi.number().min(0).optional(),
+    priceWithoutPromotion: Joi.number().min(0),
     categories: Joi.array().items(Joi.string().uuid()).default([])
 });
 
