@@ -9,6 +9,8 @@
     "cli": "moleculer connect NATS",
     "ci": "jest --watch",
     "test": "jest --coverage",
+    "test:integration": "jest tests/integrated --verbose",
+    "test:integration:watch": "jest tests/integrated --watch --verbose",
     "dc:up": "docker-compose up --build -d",
     "dc:logs": "docker-compose logs -f",
     "dc:down": "docker-compose down"
@@ -22,12 +24,17 @@
     "@types/bcrypt": "^6.0.0",
     "@types/connect-history-api-fallback": "^1.5.4",
     "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/nodemailer": "^7.0.1",
-    "jest": "^27.5.1",
+    "@types/supertest": "^6.0.3",
+    "jest": "^29.7.0",
     "jest-cli": "^27.5.1",
     "moleculer-repl": "^0.7.3",
-    "tsx": "^4.20.5"
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",
@@ -51,14 +58,6 @@
   },
   "engines": {
     "node": ">= 16.x.x"
-  },
-  "jest": {
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node",
-    "rootDir": "./services",
-    "roots": [
-      "../test"
-    ]
   },
   "prisma": {
     "schema": "./prisma"

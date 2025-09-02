@@ -5,6 +5,7 @@ import ApiGateway, { IncomingRequest, Route, GatewayResponse } from 'moleculer-w
 const E = ApiGateway.Errors;
 
 const NON_LOGIN_APIS = [
+    "/api/hello",
     "/api/auth/register",
     "/api/auth/login",
     "/api/auth/forgot-password",

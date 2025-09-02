@@ -29,6 +29,9 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                 mappingPolicy: "restrict",
                 authorization: true,
                 aliases: {
+                    // Hello
+                    "GET /hello": "hello.hello",
+
                     // Auth
                     "POST /auth/register": "auth.register",
                     "POST /auth/login": "auth.login",
