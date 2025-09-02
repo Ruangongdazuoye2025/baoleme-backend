@@ -7,10 +7,8 @@
     "dev": "npx tsx ./node_modules/moleculer/bin/moleculer-runner.js --env --config moleculer.config.ts --hot --repl services/**/*.service.ts",
     "start": "moleculer-runner --env --config out/moleculer.config.js",
     "cli": "moleculer connect NATS",
-    "ci": "jest --watch",
-    "test": "jest --coverage",
-    "test:integration": "jest tests/integrated --verbose",
-    "test:integration:watch": "jest tests/integrated --watch --verbose",
+    "test:integration": "jest tests/integration --verbose --setupFilesAfterEnv=./tests/integration/setup.ts --runInBand",
+    "test:integration:watch": "jest tests/integration --watch --verbose --setupFilesAfterEnv=./tests/integration/setup.ts --runInBand",
     "dc:up": "docker-compose up --build -d",
     "dc:logs": "docker-compose logs -f",
     "dc:down": "docker-compose down"

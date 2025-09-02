@@ -13,6 +13,9 @@ module.exports = {
     'services/**/*.ts',
     '!services/**/*.d.ts'
   ],
+  setupFiles: [
+    'dotenv/config'
+  ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   testTimeout: 30000

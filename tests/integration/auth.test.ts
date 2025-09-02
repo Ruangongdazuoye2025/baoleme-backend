@@ -1,18 +1,14 @@
 // tests/integrated/auth.test.ts
 import request from 'supertest';
-import dotenv from 'dotenv';
 import { SmtpTestServer } from '../utils/smtp.util';
-
-// 加载环境变量
-dotenv.config();
-
-// 为测试配置 SMTP 服务器
-const SMTP_PORT = 1025;
-const SMTP_HOST = '127.0.0.1';
+import { describeGenericAuthTest } from '../utils/auth-test.util';
 
 describe('Auth and User Service Integration Tests', () => {
     const baseURL = process.env.BASE_URL || 'http://localhost:3000';
-    const smtpServer = new SmtpTestServer(SMTP_PORT, SMTP_HOST);
+
+    beforeAll(() => {
+        console.log('Testing against:', baseURL);
+    });
 
     let userId: string;
     let authToken: string;
@@ -20,15 +16,10 @@ describe('Auth and User Service Integration Tests', () => {
         email: `testuser_${Date.now()}@example.com`,
         password: 'Password123!',
     };
-
-    beforeAll(async () => {
-        await smtpServer.start(SMTP_PORT, SMTP_HOST);
-        console.log('Testing against:', baseURL);
-    }, 30000); // 增加 beforeAll 的超时时间
-
-    afterAll(async () => {
-        await smtpServer.stop();
-    }, 30000);
+    const testUser2 = {
+        email: `testuser2_${Date.now()}@example.com`,
+        password: 'Password123!',
+    };
 
     describe('User Registration and Verification', () => {
         it('should register a new user and send a verification email', async () => {
@@ -46,7 +37,7 @@ describe('Auth and User Service Integration Tests', () => {
         });
 
         it('should verify the user account using the token from email', async () => {
-            const mail = await smtpServer.waitForMail()
+            const mail = await ((global as any).smtpServer as SmtpTestServer).waitForMail();
             expect(mail.to).not.toBeUndefined();
             expect(Array.isArray(mail.to)).toBe(false);
             expect((mail.to as any).text).toContain(testUser.email);
@@ -54,7 +45,7 @@ describe('Auth and User Service Integration Tests', () => {
             const tokenMatch = mail.html?.toString().match(/token=([^"]+)/);
             expect(tokenMatch).not.toBeNull();
             const token = decodeURIComponent(tokenMatch![1]);
-            smtpServer.resetMailPromise();
+            ((global as any).smtpServer as SmtpTestServer).resetMailPromise();
             await request(baseURL)
                 .post('/api/auth/verify-register')
                 .send({ token })
@@ -108,4 +99,11 @@ describe('Auth and User Service Integration Tests', () => {
             expect(response.body).not.toHaveProperty('password');
         });
     });
+
+    describe('Generic Auth Test', () => {
+        describeGenericAuthTest(request(baseURL), testUser2.email, testUser2.password, (token, id) => {
+            authToken = token;
+            userId = id;
+        });
+    })
 });

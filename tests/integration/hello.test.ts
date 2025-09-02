@@ -1,8 +1,4 @@
 import request from 'supertest';
-import dotenv from 'dotenv';
-
-// 加载测试环境变量
-dotenv.config();
 
 describe('Hello Service Integration Tests', () => {
     const baseURL = process.env.BASE_URL || 'http://localhost:3000';
