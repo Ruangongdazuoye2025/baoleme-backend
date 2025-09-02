@@ -30,6 +30,9 @@ spec:
           value: "addresspass"
         - name: POSTGRES_HOST
           value: "postgres-address"
+        ports:
+        - containerPort: 3000
+          name: http
         resources:
           limits:
             cpu: "200m"
@@ -37,6 +40,22 @@ spec:
           requests:
             cpu: "100m"
             memory: "256Mi"
+
+---
+#########################################################
+# Service for Address Service
+#########################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: address
+spec:
+  selector:
+    app: address
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: http
 
 ---
 # ==============================
