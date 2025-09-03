@@ -116,9 +116,9 @@ const CartService: ServiceSchema = {
                     await (this.prisma as PrismaClient).cartItem.upsert({
                         where: key,
                         update: { quantity },
-                        create: { 
+                        create: {
                             customerId: currentUserId,
-                            itemId, 
+                            itemId,
                             quantity,
                             shopId
                         }
@@ -148,7 +148,7 @@ const CartService: ServiceSchema = {
                 const settlable = shopCartItemsWithItem.length > 0 &&
                     shopCartItemsWithItem.every(i => i.item.available && !i.item.stockout) &&
                     total + shop.deliveryPrice >= shop.deliveryThreshold;
-                
+
                 return {
                     total,
                     totalWithoutPromotion,
@@ -175,7 +175,7 @@ const CartService: ServiceSchema = {
                     const item = await ctx.call("item.get", { id: cartItem.itemId });
                     result.push({
                         item,
-                        quantity: cartItem.quantity 
+                        quantity: cartItem.quantity
                     });
                 }
 
@@ -200,7 +200,26 @@ const CartService: ServiceSchema = {
     methods: {
         // Get cart information - internal method
         async getCartInfoInternal(userId: string, shopId: string) {
-            
+            const shopCartItems = await (this.prisma as PrismaClient).cartItem.findMany({
+                where: { customerId: userId, shopId }
+            });
+
+            const shopCartItemsWithItem = await Promise.all(shopCartItems.map(async cartItem => {
+                return { ...cartItem, item: await this.broker.call("item.get", { id: cartItem.itemId }) as any };
+            }));
+
+            const shop = await this.broker.call("shop.get", { id: shopId }) as any;
+            const total = shopCartItemsWithItem.reduce((sum, i) => sum + i.quantity * i.item.price, 0);
+            const totalWithoutPromotion = shopCartItemsWithItem.reduce((sum, i) => sum + i.quantity * i.item.priceWithoutPromotion, 0);
+            const settlable = shopCartItemsWithItem.length > 0 &&
+                shopCartItemsWithItem.every(i => i.item.available && !i.item.stockout) &&
+                total + shop.deliveryPrice >= shop.deliveryThreshold;
+
+            return {
+                total,
+                totalWithoutPromotion,
+                settlable
+            };
         }
     },
 
