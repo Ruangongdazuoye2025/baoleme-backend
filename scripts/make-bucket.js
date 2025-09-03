@@ -5,7 +5,7 @@ dotenv.config()
 const minio = new Client({
     endPoint: process.env.MINIO_ENDPOINT,
     port: Number(process.env.MINIO_PORT),
-    useSSL: Boolean(process.env.MINIO_USE_SSL),
+    useSSL: process.env.MINIO_USE_SSL === 'true',
     accessKey: process.env.MINIO_ACCESS_KEY,
     secretKey: process.env.MINIO_SECRET_KEY
 })
