@@ -1,12 +1,12 @@
 name: Microservice Deploy
 
 on:
-  push:
-    branches:
-      - microservice-refactor
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
+  # push:
+  #   branches:
+  #     - microservice-refactor
+  #   paths-ignore:
+  #     - '**.md'
+  #     - 'docs/**'
   workflow_dispatch:
     
 

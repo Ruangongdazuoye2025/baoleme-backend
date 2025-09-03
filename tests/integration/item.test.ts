@@ -19,7 +19,7 @@ describe('Item Service Integration Tests', () => {
     // 在所有测试开始前，注册一个商家用户并创建店铺
     beforeAll(() => {
         console.log('Testing against:', baseURL);
-    }); // 增加 beforeAll 的超时时间
+    });
 
     describe('Setup: Create Merchant, Shop, and Category', () => {
         describeGenericAuthTest(request(baseURL), testUser.email, testUser.password, (token, id) => {

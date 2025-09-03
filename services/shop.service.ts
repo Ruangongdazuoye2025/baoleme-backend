@@ -10,9 +10,9 @@ import haversineDistance from "haversine-distance";
 // --- Joi Schemas for Request Validation ---
 
 const getFilteredGlobalShopsRequestSchema = Joi.object({
-    p: Joi.number().integer().min(0).default(0).optional(),
-    pn: Joi.number().integer().min(1).max(100).default(10).optional(),
-    q: Joi.string().allow('').default('').optional(),
+    p: Joi.number().integer().min(0).default(0),
+    pn: Joi.number().integer().min(1).max(100).default(10),
+    q: Joi.string().allow('').default(''),
     min_ca: Joi.string().isoDate().optional(),
     max_ca: Joi.string().isoDate().optional(),
 }).required()
@@ -28,7 +28,7 @@ const shopIdRequestSchema = Joi.object({
 const createShopRequestSchema = Joi.object({
     name: Joi.string().required(),
     description: Joi.string().allow('').required(),
-    categories: Joi.array().items(Joi.string()).required(),
+    categories: Joi.array().items(Joi.string().uuid()).required(),
     address: Joi.object({
         coordinate: Joi.array().items(Joi.number()).length(2).required(),
         province: Joi.string().required(),
@@ -50,7 +50,7 @@ const updateShopProfileRequestSchema = Joi.object({
     id: Joi.string().uuid().required(),
     name: Joi.string().optional(),
     description: Joi.string().allow('').optional(),
-    categories: Joi.array().items(Joi.string()).optional(),
+    categories: Joi.array().items(Joi.string()).optional().default([]),
     address: Joi.object({
         coordinate: Joi.array().items(Joi.number()).length(2).optional(),
         province: Joi.string().optional(),
@@ -141,7 +141,7 @@ const shopTopItemsQuerySchema = Joi.object({
 const updateItemCategoryPosRequestSchema = Joi.object({
     shopId: Joi.string().uuid().required(),
     categoryId: Joi.string().uuid().required(),
-    before: Joi.string().optional(),
+    before: Joi.string().uuid().allow(null).required(),
 });
 
 const deleteItemCategoryRequestSchema = Joi.object({
@@ -191,25 +191,25 @@ interface CreateShopRequest {
 
 interface UpdateShopProfileRequest {
     id: string
-    name: string
-    description: string
-    categories: string[]
-    address: {
-        coordinate: [number, number]
-        province: string
-        city: string
-        district: string
-        address: string
-        name: string
-        tel: string
+    name?: string
+    description?: string
+    categories?: string[]
+    address?: {
+        coordinate?: [number, number]
+        province?: string
+        city?: string
+        district?: string
+        address?: string
+        name?: string
+        tel?: string
     }
     verified?: boolean
-    opened: boolean
-    openTimeStart: number
-    openTimeEnd: number
-    deliveryThreshold: number
-    deliveryPrice: number
-    maximumDistance: number
+    opened?: boolean
+    openTimeStart?: number
+    openTimeEnd?: number
+    deliveryThreshold?: number
+    deliveryPrice?: number
+    maximumDistance?: number
 }
 
 interface UpdateShopImageMeta { // For ctx.meta.$params in stream actions
@@ -241,7 +241,7 @@ interface UpdateShopCategoryRequest {
 
 interface UpdateShopCategoryPosRequest {
     id: string;
-    before: string;
+    before?: string;
 }
 
 interface DeleteShopCategoryRequest {
@@ -443,12 +443,12 @@ const ShopService: ServiceSchema = {
                 });
                 
                 await Promise.all([
-                    ctx.call("oss.removeObject", { objectName: `shops/${id}/cover.webp` }),
-                    ctx.call("oss.removeObject", { objectName: `shops/${id}/cover-thumbnail.webp` }),
-                    ctx.call("oss.removeObject", { objectName: `shops/${id}/detail.webp` }),
-                    ctx.call("oss.removeObject", { objectName: `shops/${id}/detail-thumbnail.webp` }),
-                    ctx.call("oss.removeObject", { objectName: `shops/${id}/license.webp` }),
-                    ctx.call("oss.removeObject", { objectName: `shops/${id}/license-thumbnail.webp` }),
+                    ctx.call("oss.removeObject", undefined, { meta: { objectName: `shops/${id}/cover.webp` } }),
+                    ctx.call("oss.removeObject", undefined, { meta: { objectName: `shops/${id}/cover-thumbnail.webp` } }),
+                    ctx.call("oss.removeObject", undefined, { meta: { objectName: `shops/${id}/detail.webp` } }),
+                    ctx.call("oss.removeObject", undefined, { meta: { objectName: `shops/${id}/detail-thumbnail.webp` } }),
+                    ctx.call("oss.removeObject", undefined, { meta: { objectName: `shops/${id}/license.webp` } }),
+                    ctx.call("oss.removeObject", undefined, { meta: { objectName: `shops/${id}/license-thumbnail.webp` } }),
                 ]);
 
                 ctx.emit("shop.deleted", {
@@ -500,15 +500,15 @@ const ShopService: ServiceSchema = {
                         deliveryThreshold,
                         deliveryPrice,
                         maximumDistance,
-                        categories: { connect: categories.map(id => ({ id })) },
-                        addressLongitude: address.coordinate[0],
-                        addressLatitude: address.coordinate[1],
-                        addressProvince: address.province,
-                        addressCity: address.city,
-                        addressDistrict: address.district,
-                        addressAddress: address.address,
-                        addressName: address.name,
-                        addressTel: address.tel
+                        categories: { set: categories?.map(id => ({ id })) },
+                        addressLongitude: address?.coordinate?.[0],
+                        addressLatitude: address?.coordinate?.[1],
+                        addressProvince: address?.province,
+                        addressCity: address?.city,
+                        addressDistrict: address?.district,
+                        addressAddress: address?.address,
+                        addressName: address?.name,
+                        addressTel: address?.tel
                     },
                     include: { categories: true }
                 });

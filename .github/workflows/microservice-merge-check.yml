@@ -1,9 +1,13 @@
 name: Microservice Merge Check
 
 on:
-  pull_request:
+  push:
     branches:
       - microservice-refactor
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
 
 jobs:
   merge-check:
@@ -14,14 +18,14 @@ jobs:
 
       - name: Build the Docker image
         run: docker build . --file Dockerfile --tag baoleme-backend-microservices:latest
-      
-      - name: Prepare environment
-        run: cp docker-compose.env scripts/docker-compose.env
 
       - name: Run docker-compose
         run: |
           docker compose -f scripts/ci-compose.yml up -d --wait
 
-      # - name: Run tests
-      #   run: |
-      #     docker container exec baoleme-backend-microservices-api
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: |
+          npm install --include=dev
+          npm run test:integration

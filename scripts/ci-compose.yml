@@ -1,107 +1,151 @@
-version: "3.3"
-
 services:
-  api:
+  baoleme-backend-api:
     image: baoleme-backend-microservices:latest
+    ports:
+      - 3000:3000
+    env_file: ci-compose.env
     environment:
-      SERVICES: api
-      PORT: 3000
-    env_file: docker-compose.env
+      - SERVICES=api,hello
     depends_on:
-      postgres:
-        condition: service_healthy
       nats:
         condition: service_started
-    networks:
-      - internal
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/hello']
+      interval: 30s
+      timeout: 5s
+      retries: 5
 
-  auth:
+  baoleme-backend-mail:
     image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
     environment:
-      SERVICES: auth
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/baoleme_test
-      JWT_SECRET: test_jwt_secret
-    env_file: docker-compose.env
+      - SERVICES=mail
     depends_on:
-      postgres:
-        condition: service_healthy
       nats:
         condition: service_started
-    networks:
-      - internal
 
-  # mail:
-  #   image: baoleme-backend-microservices:latest
-  #   environment:
-  #     SERVICES: mail
-  #   env_file: docker-compose.env
-  #   depends_on:
-  #     - nats
-  #   networks:
-  #     - internal
-
-  oss:
+  baoleme-backend-oss:
     image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
     environment:
-      SERVICES: oss
-    env_file: docker-compose.env
+      - SERVICES=oss
     depends_on:
       minio:
         condition: service_healthy
       nats:
         condition: service_started
-    networks:
-      - internal
-  
-  address:
+
+  baoleme-backend-auth:
     image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
     environment:
-      SERVICES: address
-    env_file: docker-compose.env
+      - SERVICES=auth
     depends_on:
       postgres:
         condition: service_healthy
       nats:
         condition: service_started
-    networks:
-      - internal
+
+  baoleme-backend-user-address:
+    image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
+    environment:
+      - SERVICES=user,address
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  baoleme-backend-shop-item:
+    image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
+    environment:
+      - SERVICES=shop,item
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  baoleme-backend-order:
+    image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
+    environment:
+      - SERVICES=order
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  baoleme-backend-cart:
+    image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
+    environment:
+      - SERVICES=cart
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  baoleme-backend-history:
+    image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
+    environment:
+      - SERVICES=history
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  baoleme-backend-review:
+    image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
+    environment:
+      - SERVICES=review
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  baoleme-backend-recommended:
+    image: baoleme-backend-microservices:latest
+    env_file: ci-compose.env
+    environment:
+      - SERVICES=recommended
+    depends_on:
+      nats:
+        condition: service_started
 
   minio:
     image: quay.io/minio/minio:latest
-    command: server --console-address ':9001' /data
+    command: server /data
     environment:
-      - MINIO_ROOT_USER=test_user
-      - MINIO_ROOT_PASSWORD=test_password
-    env_file: docker-compose.env
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
-    networks:
-      - internal
 
   postgres:
     image: postgres:17
     environment:
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=baoleme_test
-    env_file: docker-compose.env
+    ports:
+      - 5432:5432
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'baoleme_test']
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
-    networks:
-      - internal
 
   nats:
     image: nats:2
-    networks:
-      - internal
-
-networks:
-  internal:
-    driver: bridge

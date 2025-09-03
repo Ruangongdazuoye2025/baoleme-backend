@@ -99,7 +99,7 @@ const ApiService: ServiceSchema<ApiSettingsSchema> = {
                     "DELETE /shops/:id": "shop.deleteShop",
                     "PATCH /shops/:id/profile": "shop.updateShopProfile",
                     "PATCH /shops/:id/image": "multipart:shop.updateShopImage",
-                    "PATCH /shops/:id/owner": "multipart:shop.updateShopOwner",
+                    "PATCH /shops/:id/owner": "shop.updateShopOwner",
                     "POST /shops/:shopId/item-categories": "shop.addItemCategory",
                     "GET /shops/:shopId/item-categories": "shop.getItemCategories",
                     "GET /shops/:shopId/item-categories/:categoryId":"shop.getItemCategory",

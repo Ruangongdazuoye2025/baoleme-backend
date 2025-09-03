@@ -12,11 +12,11 @@ RUN npm install -g typescript
 
 COPY . .
 
+RUN npm install --include=dev
+RUN npx prisma generate
+RUN npm run build
+RUN npm prune --omit=dev
+
 EXPOSE 3000
 
-# 根据SERVICES环境变量决定启动方式
-CMD if [ "$SERVICES" = "api" ]; then \
-        npm run build && npm start; \
-    else \
-        sh scripts/start-services.sh; \
-    fi
+CMD ["sh", "-c", "sh scripts/start-services.sh"]
