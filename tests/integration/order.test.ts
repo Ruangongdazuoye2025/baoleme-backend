@@ -80,6 +80,9 @@ describe('Order Service Integration Tests', () => {
         it('should create a shop', async () => {
             const res = await req.post('/api/shops').set('Authorization', `Bearer ${merchantToken}`).send(shopData).expect(200);
             shopId = res.body.id;
+        });
+
+        it('should verify the created shop', async () => {
             // verify shop
             await req.patch(`/api/shops/${shopId}/profile`).set('Authorization', `Bearer ${merchantToken}`).send({ verified: true }).expect(200);
         });
@@ -125,6 +128,7 @@ describe('Order Service Integration Tests', () => {
 
         it('should appear in customer order list', async () => {
             const res = await req.get('/api/orders/as-customer').set('Authorization', `Bearer ${customerToken}`).expect(200);
+            console.log(res.body);
             expect(res.body.some((o: any) => o.id === orderId)).toBe(true);
         });
 

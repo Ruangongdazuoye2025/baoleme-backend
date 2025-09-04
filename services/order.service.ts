@@ -257,7 +257,7 @@ const OrderService: ServiceSchema = {
                 }
 
                 const shop: any = await ctx.call('shop.get', { id: shopId });
-                if (!shop || !shop.verified) {
+                if (!shop || shop.verified === false) {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.SHOP_NOT_FOUND, 404);
                 }
                 const now = new Date();

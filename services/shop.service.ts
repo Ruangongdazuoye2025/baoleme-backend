@@ -484,16 +484,13 @@ const ShopService: ServiceSchema = {
                     }));
                 }
 
-                if(currentUserRole !== UserRole.ADMIN) {
-                    verified = undefined;
-                }
-
                 const updatedShop = await (this.prisma as PrismaClient).shop.update({
                     where: { id },
                     data: {
                         name,
                         description,
                         ownerId: currentUserId, 
+                        verified,
                         opened,
                         openTimeStart,
                         openTimeEnd,
