@@ -181,6 +181,43 @@ describe('Item Service Integration Tests', () => {
         });
     });
 
+    describe('PATCH /api/shops/{id}/profile', () => {
+        it('should update shop profile', async () => {
+            const updatedData = {
+                name: '更新后店铺名称',
+                description: '更新后描述',
+                categories: [],
+                address: {
+                    coordinate: [116.397428, 39.90923],
+                    province: '北京',
+                    city: '北京',
+                    district: '东城区',
+                    address: '测试地址123号',
+                    name: '测试联系人',
+                    tel: '13800138000'
+                },
+                verified: true,
+                opened: true,
+                openTimeStart: 480, 
+                openTimeEnd: 1020, 
+                deliveryThreshold: 2000, 
+                deliveryPrice: 500, 
+                maximumDistance: 5.0
+            };
+
+            const response = await request(baseURL)
+                .patch(`/api/shops/${shopId}/profile`)
+                .set('Authorization', `Bearer ${authToken}`)
+                .send(updatedData)
+                .expect('Content-Type', /json/)
+                .expect(200);
+
+            expect(response.body).toHaveProperty('name', updatedData.name);
+            expect(response.body).toHaveProperty('description', updatedData.description);
+            expect(response.body).toHaveProperty('opened', updatedData.opened);
+        });
+    })
+
     describe('PATCH /api/shops/{shopId}/item-categories/{categoryId}/pos', () => {
         it('should update category position', async () => {
             const positionData = {

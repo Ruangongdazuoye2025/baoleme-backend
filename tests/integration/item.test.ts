@@ -42,7 +42,7 @@ describe('Item Service Integration Tests', () => {
                 .send({
                     name: 'My Test Shop',
                     description: 'A shop for testing purposes',
-                    categories: [], // 假设可以为空或需要预先获取
+                    categories: [],
                     address: {
                         coordinate: [0, 0],
                         province: 'New York',
