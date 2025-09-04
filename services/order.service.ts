@@ -305,14 +305,16 @@ const OrderService: ServiceSchema = {
                     }
                 });
 
-                const total = orderItems.reduce((sum, item) => sum + item.price, 0) + shop.deliveryPrice;
-                if (total < shop.deliveryThreshold) {
+                const itemsTotal = orderItems.reduce((sum, item) => sum + item.price, 0);
+                const total = itemsTotal + shop.deliveryPrice;
+                if (itemsTotal < shop.deliveryThreshold) {
                     throw new Errors.MoleculerClientError(ORDER_ERROR_MESSAGES.ORDER_BELOW_MINIMUM, 403);
                 }
 
-                const address: any = await ctx.call('address.getAddressById', { id: addressId });
+                const address: any = await ctx.call('address.getAddressById', { id: addressId }, { meta: ctx.meta });
+
                 const distance = 0.001 * haversine(
-                    { latitude: shop.addressLatitude, longitude: shop.addressLongitude },
+                    { latitude: shop.address.coordinate[1], longitude: shop.address.coordinate[0] },
                     { latitude: address.coordinate[1]!, longitude: address.coordinate[0]! }
                 )
 
@@ -327,16 +329,16 @@ const OrderService: ServiceSchema = {
                         customerId: currentUserId,
                         shopId,
                         deliveryFee: shop.deliveryPrice,
-                        total: shop.deliveryPrice + total,
+                        total: total,
                         note,
                         items: { create: orderItems },
-                        shopLatitude: shop.address.coordinate[0],
-                        shopLongitude: shop.address.coordinate[1],
+                        shopLatitude: shop.address.coordinate[1],
+                        shopLongitude: shop.address.coordinate[0],
                         shopProvince: shop.address.province,
                         shopCity: shop.address.city,
                         shopDistrict: shop.address.district,
                         shopAddress: shop.address.address,
-                        shopName: shop.address.name, // 修正：使用 shop.name 而不是 shop.addressName
+                        shopName: shop.name,
                         shopTel: shop.address.tel,
                         customerLatitude: address.coordinate[1]!,
                         customerLongitude: address.coordinate[0]!,
