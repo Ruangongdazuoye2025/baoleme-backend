@@ -29,7 +29,7 @@ const getOrdersAsShopSchema = Joi.object({
 })
 
 const getOrdersSchema = Joi.object({
-    p: Joi.number().integer().min(0).default(10).optional(),
+    p: Joi.number().integer().min(0).default(0).optional(),
     pn: Joi.number().integer().min(1).max(100).default(10).optional(),
     s: Joi.string().valid('unpaid', 'preparing', 'prepared', 'delivering', 'finished', 'canceled').optional(),
 })
@@ -678,7 +678,7 @@ const OrderService: ServiceSchema = {
             }
             
             // 计算店铺销量
-            const shopItemIds = await ctx.call("shop.getShopItemIds", { shopId })
+            const shopItemIds = await ctx.call("item.getShopItemIds", { shopId })
             const shopOrderSum = (await this.prisma.orderItem.aggregate({
                 _sum: { quantity: true },
                 where: {

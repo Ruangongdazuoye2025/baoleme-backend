@@ -127,8 +127,10 @@ describe('Order Service Integration Tests', () => {
         });
 
         it('should appear in customer order list', async () => {
-            const res = await req.get('/api/orders/as-customer').set('Authorization', `Bearer ${customerToken}`).expect(200);
-            console.log(res.body);
+            const res = await req.get('/api/orders/as-customer')
+            .set('Authorization', `Bearer ${customerToken}`)
+            .send( {p: '0', pn: '1', s: 'unpaid'} )
+            .expect(200);
             expect(res.body.some((o: any) => o.id === orderId)).toBe(true);
         });
 
@@ -144,7 +146,9 @@ describe('Order Service Integration Tests', () => {
         });
 
         it('should appear in shop order list', async () => {
-            const res = await req.get(`/api/orders/as-shop/${shopId}`).set('Authorization', `Bearer ${merchantToken}`).expect(200);
+            const res = await req.get(`/api/orders/as-shop/${shopId}`)
+            .set('Authorization', `Bearer ${merchantToken}`)
+            .expect(200);
             expect(res.body.some((o: any) => o.id === orderId)).toBe(true);
         });
 
